@@ -446,6 +446,14 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check local part (username) minimum length - reject suspiciously short usernames like "dej"
+    if (localPart.length < 4) {
+      errorDiv.textContent = 'Username is too short or unreliable - please use a longer username (4+ characters)';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check minimum length
     if (email.length < 5) {
       errorDiv.textContent = 'Email address is too short';
@@ -536,6 +544,10 @@ const FormHandler = (() => {
     // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
     const domainNamePart = domain.split('.').slice(0, -1).join('.');
     if (domainNamePart.length < 3) return false;
+
+    // Check local part (username) minimum length - reject suspiciously short usernames
+    const localPart = lowerEmail.split('@')[0];
+    if (localPart.length < 4) return false;
 
     // Check minimum length
     if (lowerEmail.length < 5) return false;
