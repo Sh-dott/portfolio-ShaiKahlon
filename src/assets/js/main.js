@@ -311,6 +311,84 @@ const FormHandler = (() => {
   ]);
 
   /**
+   * Check if a domain looks like a misspelling of a common provider
+   * Uses Levenshtein distance to detect typos like gmdail (gmail), gmial (gmail), etc.
+   */
+  const isSuspiciousDomain = (domain) => {
+    // List of very common email providers to check against
+    const commonDomains = [
+      'gmail', 'gmail.com', 'yahoo', 'yahoo.com', 'outlook', 'outlook.com',
+      'hotmail', 'hotmail.com', 'protonmail', 'protonmail.com',
+      'aol', 'aol.com', 'icloud', 'icloud.com', 'mail', 'mail.com',
+      'google', 'google.com', 'facebook', 'facebook.com'
+    ];
+
+    // Extract just the domain name (without TLD)
+    const domainName = domain.split('.')[0].toLowerCase();
+
+    // First, check if this is an EXACT match with any common domain (not suspicious)
+    for (let common of commonDomains) {
+      const commonName = common.split('.')[0].toLowerCase();
+      if (domainName === commonName) {
+        return false; // Exact match, not suspicious
+      }
+    }
+
+    // Then check for typos (similar but not exact)
+    for (let common of commonDomains) {
+      // Get just the domain part if it has a TLD
+      const commonName = common.split('.')[0].toLowerCase();
+
+      // Calculate Levenshtein distance
+      const distance = levenshteinDistance(domainName, commonName);
+      const maxLen = Math.max(domainName.length, commonName.length);
+
+      // If distance is small compared to length, it's likely a typo
+      // For example: "gmdail" vs "gmail" = distance 1, maxLen 6 = 17% different
+      // We use 40% threshold to catch common misspellings
+      if (distance > 0 && distance <= 3 && distance <= Math.ceil(maxLen * 0.4)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  /**
+   * Calculate Levenshtein distance between two strings
+   * Used to detect domain name typos/misspellings
+   */
+  const levenshteinDistance = (str1, str2) => {
+    const len1 = str1.length;
+    const len2 = str2.length;
+    const matrix = [];
+
+    for (let i = 0; i <= len2; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= len1; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= len2; i++) {
+      for (let j = 1; j <= len1; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+
+    return matrix[len2][len1];
+  };
+
+  /**
    * Check if a username looks like random gibberish/fake
    * Detects patterns like: defj, qwerty, xyz, abc, etc.
    */
@@ -460,6 +538,14 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check if domain looks like a misspelling of a common provider
+    if (isSuspiciousDomain(domain)) {
+      errorDiv.textContent = 'Domain appears to be a misspelling (e.g., gmdail instead of gmail) - please check your domain';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check for suspicious patterns
     if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
       errorDiv.textContent = 'Invalid email format detected';
@@ -578,6 +664,9 @@ const FormHandler = (() => {
 
     // Check if domain is disposable
     if (disposableEmailDomains.has(domain)) return false;
+
+    // Check if domain looks like a misspelling of a common provider
+    if (isSuspiciousDomain(domain)) return false;
 
     // Check for suspicious patterns
     if (lowerEmail.includes('..') || lowerEmail.startsWith('.') || lowerEmail.endsWith('.')) {
