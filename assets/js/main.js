@@ -457,25 +457,12 @@ const FormHandler = (() => {
       return;
     }
 
-    // Prepare email content
-    const emailSubject = encodeURIComponent(`New Contact Form Submission from ${name}`);
-    const emailBody = encodeURIComponent(
-      `Name: ${name}\n` +
-      `Email: ${email}\n` +
-      `Message:\n${message}`
-    );
-
-    // Send email via mailto link
-    const mailtoLink = `mailto:kahlonshai1@gmail.com?subject=${emailSubject}&body=${emailBody}`;
-
-    // Open email client
-    window.location.href = mailtoLink;
-
     // Show success message
     showSuccessMessage(form);
 
-    // Reset form
-    form.reset();
+    // Submit form to FormSubmit.co
+    // This will send the data and redirect back to the portfolio
+    form.submit();
   };
 
   /**
