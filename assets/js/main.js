@@ -281,8 +281,8 @@ const FormHandler = (() => {
   /**
    * Validation regex patterns
    */
-  // Strict email validation - RFC 5322 simplified
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Strict email validation - only allow alphanumeric, dots, hyphens, underscores
+  const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
   // Only letters, spaces, hyphens, and apostrophes for names
   const nameRegex = /^[a-zA-Z\s'-]+$/;
@@ -296,7 +296,20 @@ const FormHandler = (() => {
     'grr.la', 'tempmail.us', 'mail.tm', 'quickmail.nl', 'dispostable.com',
     '10minutemail.net', 'tempmail.net', 'testing.org', 'sharklasers.net',
     'trashmail.net', 'yopmail.fr', 'yopmail.net', 'yopmail.de', 'temp-mail.org',
-    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com'
+    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com',
+    'go.cot', 'test.test', 'dev.test', 'local.test', 'localhost.test',
+    'example.cot', 'fake.cot', 'test.cot', 'temp.cot'
+  ]);
+
+  // Whitelist of legitimate TLDs
+  const legitimateTLDs = new Set([
+    'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
+    'io', 'co', 'uk', 'ca', 'us', 'au', 'de', 'fr', 'jp', 'ru', 'cn', 'in', 'br', 'mx',
+    'info', 'biz', 'name', 'mobi', 'asia', 'tel', 'aero', 'coop', 'museum', 'pro',
+    'xxx', 'cat', 'jobs', 'post', 'geo', 'travel', 'tel', 'vote', 'nyc', 'london',
+    'tv', 'cc', 'ws', 'app', 'dev', 'online', 'site', 'shop', 'blog', 'cloud',
+    'ai', 'tech', 'digital', 'link', 'download', 'social', 'website', 'space',
+    'services', 'solutions', 'systems', 'net', 'world', 'email', 'me'
   ]);
 
   /**
@@ -369,8 +382,24 @@ const FormHandler = (() => {
       return;
     }
 
-    // Extract domain from email
-    const domain = email.split('@')[1].toLowerCase();
+    // Extract local and domain parts
+    const [localPart, domain] = email.split('@');
+
+    // Check for invalid characters in local part (before @)
+    if (/[^a-z0-9._-]/.test(localPart)) {
+      errorDiv.textContent = 'Email contains invalid characters';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check for invalid characters in domain
+    if (/[^a-z0-9.-]/.test(domain)) {
+      errorDiv.textContent = 'Domain contains invalid characters';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
 
     // Check if domain is in disposable list
     if (disposableEmailDomains.has(domain)) {
@@ -380,9 +409,29 @@ const FormHandler = (() => {
       return;
     }
 
-    // Check for suspicious patterns
+    // Check for suspicious patterns in email
     if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
       errorDiv.textContent = 'Invalid email format detected';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check for consecutive dots in domain
+    if (domain.includes('..')) {
+      errorDiv.textContent = 'Invalid domain format detected';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Extract and validate TLD
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+
+    // Check if TLD is legitimate
+    if (!legitimateTLDs.has(tld)) {
+      errorDiv.textContent = 'Email uses an invalid or suspicious domain extension';
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
       return;
@@ -391,6 +440,14 @@ const FormHandler = (() => {
     // Check minimum length
     if (email.length < 5) {
       errorDiv.textContent = 'Email address is too short';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check maximum length (RFC 5321)
+    if (email.length > 254) {
+      errorDiv.textContent = 'Email address is too long';
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
       return;
@@ -440,8 +497,14 @@ const FormHandler = (() => {
     // Check basic format
     if (!emailRegex.test(lowerEmail)) return false;
 
-    // Extract domain
-    const domain = lowerEmail.split('@')[1].toLowerCase();
+    // Extract local and domain parts
+    const [localPart, domain] = lowerEmail.split('@');
+
+    // Check for invalid characters in local part
+    if (/[^a-z0-9._-]/.test(localPart)) return false;
+
+    // Check for invalid characters in domain
+    if (/[^a-z0-9.-]/.test(domain)) return false;
 
     // Check if domain is disposable
     if (disposableEmailDomains.has(domain)) return false;
@@ -451,8 +514,21 @@ const FormHandler = (() => {
       return false;
     }
 
+    // Check for consecutive dots in domain
+    if (domain.includes('..')) return false;
+
+    // Extract and validate TLD
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+
+    // Check if TLD is legitimate
+    if (!legitimateTLDs.has(tld)) return false;
+
     // Check minimum length
     if (lowerEmail.length < 5) return false;
+
+    // Check maximum length
+    if (lowerEmail.length > 254) return false;
 
     return true;
   };
