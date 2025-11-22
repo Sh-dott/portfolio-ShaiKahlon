@@ -437,6 +437,15 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
+    const domainNamePart = domain.split('.').slice(0, -1).join('.');
+    if (domainNamePart.length < 3) {
+      errorDiv.textContent = 'Domain name is too short or unreliable - please use a longer domain';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check minimum length
     if (email.length < 5) {
       errorDiv.textContent = 'Email address is too short';
@@ -523,6 +532,10 @@ const FormHandler = (() => {
 
     // Check if TLD is legitimate
     if (!legitimateTLDs.has(tld)) return false;
+
+    // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
+    const domainNamePart = domain.split('.').slice(0, -1).join('.');
+    if (domainNamePart.length < 3) return false;
 
     // Check minimum length
     if (lowerEmail.length < 5) return false;

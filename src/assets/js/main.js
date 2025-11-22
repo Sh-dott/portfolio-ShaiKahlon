@@ -281,11 +281,21 @@ const FormHandler = (() => {
   /**
    * Validation regex patterns
    */
-  // Strict email validation - RFC 5322 simplified
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Strict email validation - only alphanumeric, dots, hyphens, underscores in local part
+  const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
   // Only letters, spaces, hyphens, and apostrophes for names
   const nameRegex = /^[a-zA-Z\s'-]+$/;
+
+  // Whitelist of legitimate TLDs (top-level domains)
+  const legitimateTLDs = new Set([
+    'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
+    'co', 'uk', 'us', 'ca', 'au', 'de', 'fr', 'it', 'es', 'nl', 'be', 'ch', 'at', 'se',
+    'no', 'dk', 'fi', 'pl', 'ru', 'br', 'mx', 'jp', 'cn', 'in', 'za', 'nz', 'kr',
+    'io', 'me', 'tv', 'cc', 'ws', 'biz', 'info', 'mobi', 'name', 'pro', 'aero',
+    'asia', 'coop', 'jobs', 'tel', 'travel', 'email', 'online', 'site', 'website',
+    'app', 'dev', 'tech', 'ai', 'cloud', 'digital', 'solutions'
+  ]);
 
   // List of common disposable/fake email domains to block
   const disposableEmailDomains = new Set([
@@ -296,7 +306,8 @@ const FormHandler = (() => {
     'grr.la', 'tempmail.us', 'mail.tm', 'quickmail.nl', 'dispostable.com',
     '10minutemail.net', 'tempmail.net', 'testing.org', 'sharklasers.net',
     'trashmail.net', 'yopmail.fr', 'yopmail.net', 'yopmail.de', 'temp-mail.org',
-    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com'
+    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com', 'go.cot',
+    'test.test', 'example.test', 'dev.test', 'localhost.localdomain'
   ]);
 
   /**
@@ -349,7 +360,7 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate email format and check for disposable/fake domains
+   * Validate email format and check for disposable/fake domains and legitimate TLDs
    */
   const validateEmail = (e) => {
     const email = e.target.value.toLowerCase().trim();
@@ -361,7 +372,7 @@ const FormHandler = (() => {
       return;
     }
 
-    // Check basic format
+    // Check basic format (alphanumeric + . _ - for local part, alphanumeric + . - for domain)
     if (!emailRegex.test(email)) {
       errorDiv.textContent = 'Please enter a valid email address (e.g., name@example.com)';
       errorDiv.style.display = 'block';
@@ -369,8 +380,22 @@ const FormHandler = (() => {
       return;
     }
 
-    // Extract domain from email
-    const domain = email.split('@')[1].toLowerCase();
+    // Check for special/suspicious characters in local part (before @)
+    const [localPart, domain] = email.split('@');
+
+    if (/[^a-z0-9._-]/.test(localPart)) {
+      errorDiv.textContent = 'Email contains invalid characters';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    if (/[^a-z0-9.-]/.test(domain)) {
+      errorDiv.textContent = 'Domain contains invalid characters';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
 
     // Check if domain is in disposable list
     if (disposableEmailDomains.has(domain)) {
@@ -388,9 +413,46 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check if domain has multiple consecutive dots
+    if (domain.includes('..')) {
+      errorDiv.textContent = 'Invalid domain format';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Extract TLD (last part after final dot)
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+
+    // Check if TLD is in whitelist of legitimate TLDs
+    if (!legitimateTLDs.has(tld)) {
+      errorDiv.textContent = 'Invalid email domain - please use a legitimate email provider';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
+    const domainNamePart = domain.split('.').slice(0, -1).join('.');
+    if (domainNamePart.length < 3) {
+      errorDiv.textContent = 'Domain name is too short or unreliable - please use a longer domain';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check minimum length
     if (email.length < 5) {
       errorDiv.textContent = 'Email address is too short';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check maximum length
+    if (email.length > 254) {
+      errorDiv.textContent = 'Email address is too long';
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
       return;
@@ -451,8 +513,25 @@ const FormHandler = (() => {
       return false;
     }
 
-    // Check minimum length
+    // Check for consecutive dots in domain
+    if (domain.includes('..')) return false;
+
+    // Extract TLD
+    const domainParts = domain.split('.');
+    const tld = domainParts[domainParts.length - 1];
+
+    // Check if TLD is legitimate
+    if (!legitimateTLDs.has(tld)) return false;
+
+    // Check domain name (without TLD) minimum length - reject overly short domains
+    const domainNamePart = domain.split('.').slice(0, -1).join('.');
+    if (domainNamePart.length < 3) return false;
+
+    // Check minimum email length
     if (lowerEmail.length < 5) return false;
+
+    // Check maximum email length
+    if (lowerEmail.length > 254) return false;
 
     return true;
   };
