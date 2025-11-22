@@ -385,16 +385,20 @@ const FormHandler = (() => {
     // Remove dots, hyphens, underscores for analysis
     const cleanUsername = username.replace(/[._-]/g, '').toLowerCase();
 
-    // Check for consecutive consonants (5+ in a row indicates likely gibberish)
-    if (/[bcdfghjklmnpqrstvwxyz]{5,}/.test(cleanUsername)) {
+    // Check for consecutive consonants (6+ in a row indicates likely gibberish)
+    // Note: legitimate names can have up to 4 consonants in a row (e.g., "strength")
+    if (/[bcdfghjklmnpqrstvwxyz]{6,}/.test(cleanUsername)) {
       return true;
     }
 
     // Common keyboard patterns and fake usernames
     const suspiciousPatterns = [
       /^qwerty/,      // keyboard pattern
-      /^asdf/,        // keyboard pattern
+      /^asdf/,        // keyboard pattern (qwerty row left-hand)
+      /^as[a-z]/,     // keyboard pattern variations like asfj, asdk, etc.
+      /^qs[a-z]/,     // similar keyboard variations
       /^zxcv/,        // keyboard pattern
+      /^zx[a-z]/,     // keyboard pattern variations
       /^abc[a-z]*$/,  // abc, abcd, abcde, etc.
       /^xyz[a-z]*$/,  // xyz, xyza, xyzb, etc.
       /^def[a-z]*$/,  // def, defa, defb, etc. (catches defj)
@@ -423,8 +427,9 @@ const FormHandler = (() => {
 
     if (consonants.length > 0) {
       const ratio = vowels.length / (vowels.length + consonants.length);
-      // If less than 15% vowels, likely gibberish (normal ratio is 35-45%)
-      if (ratio < 0.15) {
+      // If less than 20% vowels, likely gibberish (normal ratio is 35-45%)
+      // Threshold set to catch obvious gibberish while allowing real names like "john" (25%)
+      if (ratio < 0.20) {
         return true;
       }
     }
