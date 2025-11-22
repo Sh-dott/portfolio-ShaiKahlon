@@ -281,9 +281,23 @@ const FormHandler = (() => {
   /**
    * Validation regex patterns
    */
+  // Strict email validation - RFC 5322 simplified
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   // Only letters, spaces, hyphens, and apostrophes for names
   const nameRegex = /^[a-zA-Z\s'-]+$/;
+
+  // List of common disposable/fake email domains to block
+  const disposableEmailDomains = new Set([
+    'tempmail.com', 'temp-mail.com', '10minutemail.com', 'guerrillamail.com',
+    'mailinator.com', 'maildrop.cc', 'sharklasers.com', 'spam4.me',
+    'trashmail.com', 'yopmail.com', 'throwaway.email', 'temp.email',
+    'mailnesia.com', 'maileater.com', 'fakeinbox.com', 'throwawaymail.com',
+    'grr.la', 'tempmail.us', 'mail.tm', 'quickmail.nl', 'dispostable.com',
+    '10minutemail.net', 'tempmail.net', 'testing.org', 'sharklasers.net',
+    'trashmail.net', 'yopmail.fr', 'yopmail.net', 'yopmail.de', 'temp-mail.org',
+    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com'
+  ]);
 
   /**
    * Initialize form handling
@@ -335,19 +349,56 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate email format
+   * Validate email format and check for disposable/fake domains
    */
   const validateEmail = (e) => {
-    const email = e.target.value;
+    const email = e.target.value.toLowerCase().trim();
     const errorDiv = document.getElementById('email-error');
 
-    if (email && !emailRegex.test(email)) {
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-    } else {
+    if (!email) {
       errorDiv.style.display = 'none';
       e.target.classList.remove('form-input-error');
+      return;
     }
+
+    // Check basic format
+    if (!emailRegex.test(email)) {
+      errorDiv.textContent = 'Please enter a valid email address (e.g., name@example.com)';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Extract domain from email
+    const domain = email.split('@')[1].toLowerCase();
+
+    // Check if domain is in disposable list
+    if (disposableEmailDomains.has(domain)) {
+      errorDiv.textContent = 'Please use a legitimate email address, not a temporary/disposable one';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check for suspicious patterns
+    if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
+      errorDiv.textContent = 'Invalid email format detected';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check minimum length
+    if (email.length < 5) {
+      errorDiv.textContent = 'Email address is too short';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // All checks passed
+    errorDiv.style.display = 'none';
+    e.target.classList.remove('form-input-error');
   };
 
   /**
@@ -382,7 +433,28 @@ const FormHandler = (() => {
   };
 
   const isEmailValid = (email) => {
-    return email && emailRegex.test(email);
+    if (!email) return false;
+
+    const lowerEmail = email.toLowerCase().trim();
+
+    // Check basic format
+    if (!emailRegex.test(lowerEmail)) return false;
+
+    // Extract domain
+    const domain = lowerEmail.split('@')[1].toLowerCase();
+
+    // Check if domain is disposable
+    if (disposableEmailDomains.has(domain)) return false;
+
+    // Check for suspicious patterns
+    if (lowerEmail.includes('..') || lowerEmail.startsWith('.') || lowerEmail.endsWith('.')) {
+      return false;
+    }
+
+    // Check minimum length
+    if (lowerEmail.length < 5) return false;
+
+    return true;
   };
 
   const isMessageValid = (message) => {
