@@ -311,6 +311,61 @@ const FormHandler = (() => {
   ]);
 
   /**
+   * Check if a username looks like random gibberish/fake
+   * Detects patterns like: defj, qwerty, xyz, abc, etc.
+   */
+  const isSuspiciousUsername = (username) => {
+    // Remove dots, hyphens, underscores for analysis
+    const cleanUsername = username.replace(/[._-]/g, '').toLowerCase();
+
+    // Check for consecutive consonants (5+ in a row indicates likely gibberish)
+    if (/[bcdfghjklmnpqrstvwxyz]{5,}/.test(cleanUsername)) {
+      return true;
+    }
+
+    // Common keyboard patterns and fake usernames
+    const suspiciousPatterns = [
+      /^qwerty/,      // keyboard pattern
+      /^asdf/,        // keyboard pattern
+      /^zxcv/,        // keyboard pattern
+      /^abc[a-z]*$/,  // abc, abcd, abcde, etc.
+      /^xyz[a-z]*$/,  // xyz, xyza, xyzb, etc.
+      /^def[a-z]*$/,  // def, defa, defb, etc. (catches defj)
+      /^ghi[a-z]*$/,  // ghi pattern
+      /^jkl[a-z]*$/,  // jkl pattern
+      /^123[0-9]*$/,  // all numbers
+      /^[a-z]{3}[0-9]+$/,  // like abc123, def456 (common fake patterns)
+      /^test[a-z0-9]*$/,   // test, test1, testa, etc.
+      /^user[a-z0-9]*$/,   // generic user pattern
+      /^admin[a-z0-9]*$/,  // admin pattern
+      /^demo[a-z0-9]*$/,   // demo pattern
+      /^temp[a-z0-9]*$/,   // temp pattern
+      /^fake[a-z0-9]*$/,   // fake pattern
+      /^guest[a-z0-9]*$/   // guest pattern
+    ];
+
+    for (let pattern of suspiciousPatterns) {
+      if (pattern.test(cleanUsername)) {
+        return true;
+      }
+    }
+
+    // Check vowel-to-consonant ratio (real names have reasonable balance)
+    const vowels = cleanUsername.match(/[aeiou]/g) || [];
+    const consonants = cleanUsername.match(/[bcdfghjklmnpqrstvwxyz]/g) || [];
+
+    if (consonants.length > 0) {
+      const ratio = vowels.length / (vowels.length + consonants.length);
+      // If less than 15% vowels, likely gibberish (normal ratio is 35-45%)
+      if (ratio < 0.15) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  /**
    * Initialize form handling
    */
   const init = () => {
@@ -450,6 +505,14 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check if username looks like random gibberish or fake pattern
+    if (isSuspiciousUsername(localPart)) {
+      errorDiv.textContent = 'Username appears to be randomly generated or suspicious - please use a real username';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check minimum length
     if (email.length < 5) {
       errorDiv.textContent = 'Email address is too short';
@@ -538,6 +601,9 @@ const FormHandler = (() => {
     // Check local part (username) minimum length - reject suspiciously short usernames
     const localPart = lowerEmail.split('@')[0];
     if (localPart.length < 4) return false;
+
+    // Check if username looks like random gibberish or fake pattern
+    if (isSuspiciousUsername(localPart)) return false;
 
     // Check minimum email length
     if (lowerEmail.length < 5) return false;
