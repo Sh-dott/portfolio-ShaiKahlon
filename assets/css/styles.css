@@ -1029,33 +1029,14 @@ footer p {
    ============================================================================ */
 
 .fade-in {
-  /* Start visible by default in case JavaScript doesn't load */
-  opacity: 1;
-  transform: translateY(0);
+  opacity: 0;
+  transform: translateY(30px);
   transition: opacity 0.8s ease, transform 0.8s ease;
 }
 
-/* Alternative state if animation hasn't triggered yet */
-.fade-in:not(.visible) {
-  /* Only apply fade-in animation if explicitly needed */
-  animation: fadeInAnimation 0.8s ease forwards;
-}
-
 .fade-in.visible {
-  /* Ensure fully visible when JavaScript adds this class */
   opacity: 1;
   transform: translateY(0);
-}
-
-@keyframes fadeInAnimation {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ============================================================================

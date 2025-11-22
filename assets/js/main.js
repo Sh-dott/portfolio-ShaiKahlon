@@ -281,172 +281,9 @@ const FormHandler = (() => {
   /**
    * Validation regex patterns
    */
-  // Strict email validation - only allow alphanumeric, dots, hyphens, underscores
-  const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   // Only letters, spaces, hyphens, and apostrophes for names
   const nameRegex = /^[a-zA-Z\s'-]+$/;
-
-  // List of common disposable/fake email domains to block
-  const disposableEmailDomains = new Set([
-    'tempmail.com', 'temp-mail.com', '10minutemail.com', 'guerrillamail.com',
-    'mailinator.com', 'maildrop.cc', 'sharklasers.com', 'spam4.me',
-    'trashmail.com', 'yopmail.com', 'throwaway.email', 'temp.email',
-    'mailnesia.com', 'maileater.com', 'fakeinbox.com', 'throwawaymail.com',
-    'grr.la', 'tempmail.us', 'mail.tm', 'quickmail.nl', 'dispostable.com',
-    '10minutemail.net', 'tempmail.net', 'testing.org', 'sharklasers.net',
-    'trashmail.net', 'yopmail.fr', 'yopmail.net', 'yopmail.de', 'temp-mail.org',
-    'tempemailaddress.com', 'trashemaildomain.com', 'fakeemail.com',
-    'go.cot', 'test.test', 'dev.test', 'local.test', 'localhost.test',
-    'example.cot', 'fake.cot', 'test.cot', 'temp.cot'
-  ]);
-
-  /**
-   * Check if a domain looks like a misspelling of a common provider
-   * Uses Levenshtein distance to detect typos like gmdail (gmail), gmial (gmail), etc.
-   */
-  const isSuspiciousDomain = (domain) => {
-    // List of very common email providers to check against
-    const commonDomains = [
-      'gmail', 'gmail.com', 'yahoo', 'yahoo.com', 'outlook', 'outlook.com',
-      'hotmail', 'hotmail.com', 'protonmail', 'protonmail.com',
-      'aol', 'aol.com', 'icloud', 'icloud.com', 'mail', 'mail.com',
-      'google', 'google.com', 'facebook', 'facebook.com'
-    ];
-
-    // Extract just the domain name (without TLD)
-    const domainName = domain.split('.')[0].toLowerCase();
-
-    // First, check if this is an EXACT match with any common domain (not suspicious)
-    for (let common of commonDomains) {
-      const commonName = common.split('.')[0].toLowerCase();
-      if (domainName === commonName) {
-        return false; // Exact match, not suspicious
-      }
-    }
-
-    // Then check for typos (similar but not exact)
-    for (let common of commonDomains) {
-      // Get just the domain part if it has a TLD
-      const commonName = common.split('.')[0].toLowerCase();
-
-      // Calculate Levenshtein distance
-      const distance = levenshteinDistance(domainName, commonName);
-      const maxLen = Math.max(domainName.length, commonName.length);
-
-      // If distance is small compared to length, it's likely a typo
-      if (distance > 0 && distance <= 3 && distance <= Math.ceil(maxLen * 0.4)) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  /**
-   * Calculate Levenshtein distance between two strings
-   * Used to detect domain name typos/misspellings
-   */
-  const levenshteinDistance = (str1, str2) => {
-    const len1 = str1.length;
-    const len2 = str2.length;
-    const matrix = [];
-
-    for (let i = 0; i <= len2; i++) {
-      matrix[i] = [i];
-    }
-
-    for (let j = 0; j <= len1; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= len2; i++) {
-      for (let j = 1; j <= len1; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-
-    return matrix[len2][len1];
-  };
-
-  /**
-   * Check if a username looks like random gibberish/fake
-   * Detects patterns like: defj, qwerty, xyz, abc, etc.
-   */
-  const isSuspiciousUsername = (username) => {
-    // Remove dots, hyphens, underscores for analysis
-    const cleanUsername = username.replace(/[._-]/g, '').toLowerCase();
-
-    // Check for consecutive consonants (6+ in a row indicates likely gibberish)
-    // Note: legitimate names can have up to 4 consonants in a row (e.g., "strength")
-    if (/[bcdfghjklmnpqrstvwxyz]{6,}/.test(cleanUsername)) {
-      return true;
-    }
-
-    // Common keyboard patterns and fake usernames
-    const suspiciousPatterns = [
-      /^qwerty/,      // keyboard pattern
-      /^asdf/,        // keyboard pattern (qwerty row left-hand)
-      /^as[a-z]/,     // keyboard pattern variations like asfj, asdk, etc.
-      /^qs[a-z]/,     // similar keyboard variations
-      /^zxcv/,        // keyboard pattern
-      /^zx[a-z]/,     // keyboard pattern variations
-      /^abc[a-z]*$/,  // abc, abcd, abcde, etc.
-      /^xyz[a-z]*$/,  // xyz, xyza, xyzb, etc.
-      /^def[a-z]*$/,  // def, defa, defb, etc. (catches defj)
-      /^ghi[a-z]*$/,  // ghi pattern
-      /^jkl[a-z]*$/,  // jkl pattern
-      /^123[0-9]*$/,  // all numbers
-      /^[a-z]{3}[0-9]+$/,  // like abc123, def456 (common fake patterns)
-      /^test[a-z0-9]*$/,   // test, test1, testa, etc.
-      /^user[a-z0-9]*$/,   // generic user pattern
-      /^admin[a-z0-9]*$/,  // admin pattern
-      /^demo[a-z0-9]*$/,   // demo pattern
-      /^temp[a-z0-9]*$/,   // temp pattern
-      /^fake[a-z0-9]*$/,   // fake pattern
-      /^guest[a-z0-9]*$/   // guest pattern
-    ];
-
-    for (let pattern of suspiciousPatterns) {
-      if (pattern.test(cleanUsername)) {
-        return true;
-      }
-    }
-
-    // Check vowel-to-consonant ratio (real names have reasonable balance)
-    const vowels = cleanUsername.match(/[aeiou]/g) || [];
-    const consonants = cleanUsername.match(/[bcdfghjklmnpqrstvwxyz]/g) || [];
-
-    if (consonants.length > 0) {
-      const ratio = vowels.length / (vowels.length + consonants.length);
-      // If less than 20% vowels, likely gibberish (normal ratio is 35-45%)
-      // Threshold set to catch obvious gibberish while allowing real names like "john" (25%)
-      if (ratio < 0.20) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  // Whitelist of legitimate TLDs
-  const legitimateTLDs = new Set([
-    'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
-    'io', 'co', 'uk', 'ca', 'us', 'au', 'de', 'fr', 'jp', 'ru', 'cn', 'in', 'br', 'mx',
-    'info', 'biz', 'name', 'mobi', 'asia', 'tel', 'aero', 'coop', 'museum', 'pro',
-    'xxx', 'cat', 'jobs', 'post', 'geo', 'travel', 'tel', 'vote', 'nyc', 'london',
-    'tv', 'cc', 'ws', 'app', 'dev', 'online', 'site', 'shop', 'blog', 'cloud',
-    'ai', 'tech', 'digital', 'link', 'download', 'social', 'website', 'space',
-    'services', 'solutions', 'systems', 'net', 'world', 'email', 'me'
-  ]);
 
   /**
    * Initialize form handling
@@ -498,133 +335,19 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate email format and check for disposable/fake domains
+   * Validate email format
    */
   const validateEmail = (e) => {
-    const email = e.target.value.toLowerCase().trim();
+    const email = e.target.value;
     const errorDiv = document.getElementById('email-error');
 
-    if (!email) {
+    if (email && !emailRegex.test(email)) {
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+    } else {
       errorDiv.style.display = 'none';
       e.target.classList.remove('form-input-error');
-      return;
     }
-
-    // Check basic format
-    if (!emailRegex.test(email)) {
-      errorDiv.textContent = 'Please enter a valid email address (e.g., name@example.com)';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Extract local and domain parts
-    const [localPart, domain] = email.split('@');
-
-    // Check for invalid characters in local part (before @)
-    if (/[^a-z0-9._-]/.test(localPart)) {
-      errorDiv.textContent = 'Email contains invalid characters';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check for invalid characters in domain
-    if (/[^a-z0-9.-]/.test(domain)) {
-      errorDiv.textContent = 'Domain contains invalid characters';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check if domain is in disposable list
-    if (disposableEmailDomains.has(domain)) {
-      errorDiv.textContent = 'Please use a legitimate email address, not a temporary/disposable one';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check if domain looks like a misspelling of a common provider
-    if (isSuspiciousDomain(domain)) {
-      errorDiv.textContent = 'Domain appears to be a misspelling (e.g., gmdail instead of gmail) - please check your domain';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check for suspicious patterns in email
-    if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) {
-      errorDiv.textContent = 'Invalid email format detected';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check for consecutive dots in domain
-    if (domain.includes('..')) {
-      errorDiv.textContent = 'Invalid domain format detected';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Extract and validate TLD
-    const domainParts = domain.split('.');
-    const tld = domainParts[domainParts.length - 1];
-
-    // Check if TLD is legitimate
-    if (!legitimateTLDs.has(tld)) {
-      errorDiv.textContent = 'Email uses an invalid or suspicious domain extension';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
-    const domainNamePart = domain.split('.').slice(0, -1).join('.');
-    if (domainNamePart.length < 3) {
-      errorDiv.textContent = 'Domain name is too short or unreliable - please use a longer domain';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check local part (username) minimum length - reject suspiciously short usernames like "dej"
-    if (localPart.length < 4) {
-      errorDiv.textContent = 'Username is too short or unreliable - please use a longer username (4+ characters)';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check if username looks like random gibberish or fake pattern
-    if (isSuspiciousUsername(localPart)) {
-      errorDiv.textContent = 'Username appears to be randomly generated or suspicious - please use a real username';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check minimum length
-    if (email.length < 5) {
-      errorDiv.textContent = 'Email address is too short';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // Check maximum length (RFC 5321)
-    if (email.length > 254) {
-      errorDiv.textContent = 'Email address is too long';
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
-      return;
-    }
-
-    // All checks passed
-    errorDiv.style.display = 'none';
-    e.target.classList.remove('form-input-error');
   };
 
   /**
@@ -659,61 +382,7 @@ const FormHandler = (() => {
   };
 
   const isEmailValid = (email) => {
-    if (!email) return false;
-
-    const lowerEmail = email.toLowerCase().trim();
-
-    // Check basic format
-    if (!emailRegex.test(lowerEmail)) return false;
-
-    // Extract local and domain parts
-    const [localPart, domain] = lowerEmail.split('@');
-
-    // Check for invalid characters in local part
-    if (/[^a-z0-9._-]/.test(localPart)) return false;
-
-    // Check for invalid characters in domain
-    if (/[^a-z0-9.-]/.test(domain)) return false;
-
-    // Check if domain is disposable
-    if (disposableEmailDomains.has(domain)) return false;
-
-    // Check if domain looks like a misspelling of a common provider
-    if (isSuspiciousDomain(domain)) return false;
-
-    // Check for suspicious patterns
-    if (lowerEmail.includes('..') || lowerEmail.startsWith('.') || lowerEmail.endsWith('.')) {
-      return false;
-    }
-
-    // Check for consecutive dots in domain
-    if (domain.includes('..')) return false;
-
-    // Extract and validate TLD
-    const domainParts = domain.split('.');
-    const tld = domainParts[domainParts.length - 1];
-
-    // Check if TLD is legitimate
-    if (!legitimateTLDs.has(tld)) return false;
-
-    // Check domain name (without TLD) minimum length - reject overly short domains like "r.com"
-    const domainNamePart = domain.split('.').slice(0, -1).join('.');
-    if (domainNamePart.length < 3) return false;
-
-    // Check local part (username) minimum length - reject suspiciously short usernames
-    const localPart = lowerEmail.split('@')[0];
-    if (localPart.length < 4) return false;
-
-    // Check if username looks like random gibberish or fake pattern
-    if (isSuspiciousUsername(localPart)) return false;
-
-    // Check minimum length
-    if (lowerEmail.length < 5) return false;
-
-    // Check maximum length
-    if (lowerEmail.length > 254) return false;
-
-    return true;
+    return email && emailRegex.test(email);
   };
 
   const isMessageValid = (message) => {
@@ -788,12 +457,25 @@ const FormHandler = (() => {
       return;
     }
 
+    // Prepare email content
+    const emailSubject = encodeURIComponent(`New Contact Form Submission from ${name}`);
+    const emailBody = encodeURIComponent(
+      `Name: ${name}\n` +
+      `Email: ${email}\n` +
+      `Message:\n${message}`
+    );
+
+    // Send email via mailto link
+    const mailtoLink = `mailto:kahlonshai1@gmail.com?subject=${emailSubject}&body=${emailBody}`;
+
+    // Open email client
+    window.location.href = mailtoLink;
+
     // Show success message
     showSuccessMessage(form);
 
-    // Submit form to FormSubmit.co
-    // This will send the data and redirect back to the portfolio
-    form.submit();
+    // Reset form
+    form.reset();
   };
 
   /**
