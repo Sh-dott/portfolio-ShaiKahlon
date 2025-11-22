@@ -72,9 +72,6 @@ const NavigationManager = (() => {
 // ============================================================================
 
 const AnimationManager = (() => {
-  const fadeElements = document.querySelectorAll('.fade-in');
-  const progressBars = document.querySelectorAll('.progress-fill');
-
   /**
    * Initialize all animations
    */
@@ -87,6 +84,9 @@ const AnimationManager = (() => {
    * Set up Intersection Observer for fade-in animations
    */
   const observeFadeInElements = () => {
+    // Query elements after DOM is ready
+    const fadeElements = document.querySelectorAll('.fade-in');
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -99,9 +99,21 @@ const AnimationManager = (() => {
       rootMargin: '0px 0px -50px 0px'
     });
 
+    // Observe all fade-in elements
     fadeElements.forEach(element => {
       observer.observe(element);
     });
+
+    // Also immediately show elements that are already in viewport
+    // (in case they load after the observer is set up)
+    setTimeout(() => {
+      fadeElements.forEach(element => {
+        const rect = element.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          element.classList.add('visible');
+        }
+      });
+    }, 100);
   };
 
   /**
