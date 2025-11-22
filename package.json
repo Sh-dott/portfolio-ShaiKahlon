@@ -1,0 +1,46 @@
+{
+  "name": "portfolio-refactored",
+  "version": "2.0.0",
+  "description": "Professional full-stack-ready portfolio website with modern architecture",
+  "main": "src/index.html",
+  "type": "module",
+  "scripts": {
+    "start": "python -m http.server 8000 --directory src",
+    "serve": "npx http-server src -p 8000",
+    "dev": "npx http-server src -p 8000 -c-1",
+    "build": "echo 'No build step required for static site'",
+    "lint:html": "npx htmlhint src/index.html",
+    "lint:css": "npx stylelint src/assets/css/styles.css",
+    "lint:js": "npx eslint src/assets/js/main.js",
+    "test": "echo 'Add your tests here'",
+    "deploy": "echo 'Configure your deployment here'"
+  },
+  "keywords": [
+    "portfolio",
+    "full-stack",
+    "responsive",
+    "modern",
+    "es6",
+    "semantic-html",
+    "professional"
+  ],
+  "author": "Shai",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "htmlhint": "^1.1.4",
+    "stylelint": "^15.10.3",
+    "eslint": "^8.52.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/portfolio"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/portfolio/issues"
+  },
+  "homepage": "https://github.com/yourusername/portfolio#readme"
+}
