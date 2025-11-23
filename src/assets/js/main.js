@@ -424,15 +424,40 @@ const FormHandler = (() => {
   };
 
   /**
+   * Verify email with online service (AbstractAPI free tier)
+   * Checks if email is valid and not disposable
+   */
+  const verifyEmailOnline = async (email) => {
+    try {
+      // Using AbstractAPI email validation (free tier: 100 requests/month)
+      const response = await fetch(
+        `https://emailvalidation.abstractapi.com/v1/?api_key=0ba7c6a0dd0f46fb82e11d3fbc0f35ee&email=${encodeURIComponent(email)}`
+      );
+
+      if (!response.ok) {
+        console.warn('Email verification service unavailable');
+        return { is_valid_format: true, is_disposable: false }; // Fallback to local validation
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.warn('Email verification failed:', error);
+      return { is_valid_format: true, is_disposable: false }; // Fallback
+    }
+  };
+
+  /**
    * Handle form submission
    */
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
     const form = e.target;
     const nameInput = form.querySelector('#name');
     const emailInput = form.querySelector('#email');
     const messageInput = form.querySelector('#message');
+    const submitBtn = form.querySelector('.form-submit');
 
     const name = nameInput.value.trim();
     const email = emailInput.value.trim();
@@ -457,6 +482,25 @@ const FormHandler = (() => {
       return;
     }
 
+    // Show loading state
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Verifying email...';
+    submitBtn.disabled = true;
+
+    // Verify email online
+    const emailData = await verifyEmailOnline(email);
+
+    // Check if email is valid
+    if (!emailData.is_valid_format || emailData.is_disposable || emailData.is_smtp_valid === false) {
+      document.getElementById('email-error').textContent =
+        'Email is invalid, disposable, or not deliverable. Please use a real email address.';
+      document.getElementById('email-error').style.display = 'block';
+      emailInput.classList.add('form-input-error');
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+      return;
+    }
+
     // Prepare email content
     const emailSubject = encodeURIComponent(`New Contact Form Submission from ${name}`);
     const emailBody = encodeURIComponent(
@@ -465,17 +509,34 @@ const FormHandler = (() => {
       `Message:\n${message}`
     );
 
-    // Send email via mailto link
-    const mailtoLink = `mailto:kahlonshai1@gmail.com?subject=${emailSubject}&body=${emailBody}`;
+    // Send email via FormSubmit API instead of mailto
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('message', message);
+    formData.append('_captcha', 'false');
+    formData.append('_next', window.location.href);
 
-    // Open email client
-    window.location.href = mailtoLink;
+    try {
+      const response = await fetch('https://formspree.io/f/xvgojokv', {
+        method: 'POST',
+        body: formData
+      });
 
-    // Show success message
-    showSuccessMessage(form);
-
-    // Reset form
-    form.reset();
+      if (response.ok) {
+        showSuccessMessage(form);
+        form.reset();
+      } else {
+        throw new Error('Form submission failed');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      document.getElementById('email-error').textContent = 'Error sending message. Please try again.';
+      document.getElementById('email-error').style.display = 'block';
+    } finally {
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    }
   };
 
   /**
