@@ -372,21 +372,45 @@ const FormHandler = (() => {
   };
 
   /**
+   * Check if domain is a known/valid email provider
+   */
+  const isKnownDomain = (domain) => {
+    const lowerDomain = domain.toLowerCase();
+    return commonDomains.includes(lowerDomain);
+  };
+
+  /**
    * Detect if domain is a typo of a common email provider
+   * Only returns typo if it's NOT a known domain
    */
   const detectDomainTypo = (domain) => {
     const lowerDomain = domain.toLowerCase();
+
+    // If it's already a known/valid domain, no typo
+    if (isKnownDomain(domain)) {
+      return { typo: false, isKnown: true };
+    }
+
+    // Check if it's close to a known domain (potential typo)
+    let bestMatch = null;
+    let bestDistance = Infinity;
 
     for (const commonDomain of commonDomains) {
       const distance = levenshteinDistance(lowerDomain, commonDomain);
       const maxDistance = Math.ceil(commonDomain.length * 0.3); // 30% typo tolerance
 
-      if (distance <= maxDistance && distance > 0) {
-        return { typo: true, suggestion: commonDomain, distance };
+      if (distance <= maxDistance && distance > 0 && distance < bestDistance) {
+        bestMatch = commonDomain;
+        bestDistance = distance;
       }
     }
 
-    return { typo: false };
+    if (bestMatch) {
+      return { typo: true, suggestion: bestMatch, distance: bestDistance };
+    }
+
+    // Domain doesn't match any known provider
+    return { typo: false, isKnown: false, unknown: true };
   };
 
   /**
@@ -416,15 +440,24 @@ const FormHandler = (() => {
       };
     }
 
-    // Check domain for typos (only if username is valid)
-    const typoCheck = detectDomainTypo(domain);
-    if (typoCheck.typo) {
+    // Check domain (only if username is valid)
+    const domainCheck = detectDomainTypo(domain);
+
+    // If domain is a typo, suggest correction
+    if (domainCheck.typo) {
       return {
         valid: false,
-        error: `Did you mean ${typoCheck.suggestion}? That domain looks like a typo.`
+        error: `Did you mean ${domainCheck.suggestion}? That looks like a typo in the domain.`
       };
     }
 
+    // If domain is unknown (not a typo and not known), still allow it
+    // (Users might use corporate/custom domains)
+    if (domainCheck.unknown) {
+      return { valid: true, error: null };
+    }
+
+    // Domain is known/valid
     return { valid: true, error: null };
   };
 
