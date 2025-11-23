@@ -286,6 +286,84 @@ const FormHandler = (() => {
   const nameRegex = /^[a-zA-Z\s'-]+$/;
 
   /**
+   * Common email domains for typo detection
+   */
+  const commonDomains = [
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+    'protonmail.com', 'icloud.com', 'mail.com', 'aol.com',
+    'gmx.com', 'yandex.com', 'company.com', 'business.com'
+  ];
+
+  /**
+   * Calculate Levenshtein distance between two strings
+   * Used to detect domain typos (e.g., gm5il vs gmail)
+   */
+  const levenshteinDistance = (str1, str2) => {
+    const matrix = [];
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    return matrix[str2.length][str1.length];
+  };
+
+  /**
+   * Detect if domain is a typo of a common email provider
+   */
+  const detectDomainTypo = (domain) => {
+    const lowerDomain = domain.toLowerCase();
+
+    for (const commonDomain of commonDomains) {
+      const distance = levenshteinDistance(lowerDomain, commonDomain);
+      const maxDistance = Math.ceil(commonDomain.length * 0.3); // 30% typo tolerance
+
+      if (distance <= maxDistance && distance > 0) {
+        return { typo: true, suggestion: commonDomain, distance };
+      }
+    }
+
+    return { typo: false };
+  };
+
+  /**
+   * Validate email format and detect domain typos
+   */
+  const validateEmailLocal = (email) => {
+    if (!email) return { valid: true, error: null };
+
+    if (!emailRegex.test(email)) {
+      return { valid: false, error: 'Invalid email format' };
+    }
+
+    const domain = email.split('@')[1];
+    const typoCheck = detectDomainTypo(domain);
+
+    if (typoCheck.typo) {
+      return {
+        valid: false,
+        error: `Did you mean ${typoCheck.suggestion}? That domain looks like a typo.`
+      };
+    }
+
+    return { valid: true, error: null };
+  };
+
+  /**
    * Initialize form handling
    */
   const init = () => {
@@ -335,15 +413,23 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate email format
+   * Validate email format and show real-time feedback
    */
   const validateEmail = (e) => {
     const email = e.target.value;
     const errorDiv = document.getElementById('email-error');
 
-    if (email && !emailRegex.test(email)) {
-      errorDiv.style.display = 'block';
-      e.target.classList.add('form-input-error');
+    if (email) {
+      const validation = validateEmailLocal(email);
+
+      if (!validation.valid) {
+        errorDiv.textContent = validation.error;
+        errorDiv.style.display = 'block';
+        e.target.classList.add('form-input-error');
+      } else {
+        errorDiv.style.display = 'none';
+        e.target.classList.remove('form-input-error');
+      }
     } else {
       errorDiv.style.display = 'none';
       e.target.classList.remove('form-input-error');
@@ -382,7 +468,9 @@ const FormHandler = (() => {
   };
 
   const isEmailValid = (email) => {
-    return email && emailRegex.test(email);
+    if (!email) return false;
+    const validation = validateEmailLocal(email);
+    return validation.valid;
   };
 
   const isMessageValid = (message) => {
