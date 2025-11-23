@@ -671,17 +671,27 @@ const FormHandler = (() => {
     // Send via FormSubmit service
     fetch('https://formsubmit.co/kahlonshai1@gmail.com', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
     })
       .then(response => {
-        if (response.ok) {
+        console.log('FormSubmit response status:', response.status);
+        if (response.ok || response.status === 200) {
+          console.log('Form submitted successfully');
           showSuccessMessage(form);
           form.reset();
           // Clear error message on success
           document.getElementById('email-error').style.display = 'none';
           document.getElementById('email-error').textContent = '';
+          // Prevent any default behaviors
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
+          return false;
         } else {
-          throw new Error('Form submission failed');
+          console.log('Form submission response not ok:', response.status);
+          throw new Error('Form submission failed with status ' + response.status);
         }
       })
       .catch(error => {
