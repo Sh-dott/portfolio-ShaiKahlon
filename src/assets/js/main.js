@@ -329,6 +329,11 @@ const FormHandler = (() => {
   const isValidUsername = (username) => {
     const lowerUsername = username.toLowerCase();
 
+    // Reject very short usernames (less than 3 chars)
+    if (username.length < 3) {
+      return { valid: false, reason: 'short', value: lowerUsername };
+    }
+
     // Reject generic/test usernames
     const genericNames = [
       'test', 'admin', 'user', 'demo', 'guest', 'noreply',
@@ -351,21 +356,27 @@ const FormHandler = (() => {
       return { valid: false, reason: 'keyboard', value: lowerUsername };
     }
 
-    // Reject very short usernames (less than 3 chars)
-    if (username.length < 3) {
-      return { valid: false, reason: 'short', value: lowerUsername };
+    // Reject usernames with excessive consonants in a row (4+ consonants for length 3-4, 6+ for longer)
+    const maxConsonantRow = username.length <= 4 ? 3 : 6;
+    const consonantPattern = new RegExp('[bcdfghjklmnpqrstvwxyz]{' + (maxConsonantRow + 1) + ',}');
+    if (consonantPattern.test(lowerUsername)) {
+      return { valid: false, reason: 'gibberish', value: lowerUsername };
     }
 
     // Reject usernames with too few vowels (gibberish detection)
+    // Stricter for short usernames (3-4 chars need at least 1 vowel, 5+ need at least 20%)
     const vowels = (lowerUsername.match(/[aeiou]/gi) || []).length;
-    const vowelRatio = vowels / username.length;
-    if (vowelRatio < 0.2 && username.length > 3) {
-      return { valid: false, reason: 'gibberish', value: lowerUsername };
-    }
-
-    // Reject usernames with excessive consonants in a row (6+ consonants)
-    if (/[bcdfghjklmnpqrstvwxyz]{6,}/.test(lowerUsername)) {
-      return { valid: false, reason: 'gibberish', value: lowerUsername };
+    if (username.length === 3 || username.length === 4) {
+      // For 3-4 character names, need at least 1 vowel
+      if (vowels === 0) {
+        return { valid: false, reason: 'gibberish', value: lowerUsername };
+      }
+    } else {
+      // For 5+ character names, need at least 20% vowels
+      const vowelRatio = vowels / username.length;
+      if (vowelRatio < 0.2) {
+        return { valid: false, reason: 'gibberish', value: lowerUsername };
+      }
     }
 
     return { valid: true, reason: null, value: lowerUsername };
