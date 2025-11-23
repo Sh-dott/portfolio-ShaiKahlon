@@ -666,7 +666,7 @@ const FormHandler = (() => {
     formData.append('email', email);
     formData.append('message', message);
     formData.append('_captcha', 'false');
-    formData.append('_next', window.location.href);
+    // Don't use _next - we handle success with JavaScript instead
 
     // Send via FormSubmit service
     fetch('https://formsubmit.co/kahlonshai1@gmail.com', {
