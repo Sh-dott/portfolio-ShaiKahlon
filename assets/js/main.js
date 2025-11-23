@@ -316,12 +316,246 @@ const SecurityHelper = (() => {
   };
 
   /**
-   * Sanitize input text
+   * Sanitize input text - remove dangerous characters and patterns
    */
   const sanitizeInput = (input) => {
     if (typeof input !== 'string') return '';
-    // Remove any HTML/script tags
-    return input.replace(/<[^>]*>/g, '').trim();
+
+    // Remove HTML/script tags
+    let sanitized = input.replace(/<[^>]*>/g, '');
+
+    // Remove control characters (ASCII 0-31, except tab/newline)
+    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+    // Trim whitespace
+    return sanitized.trim();
+  };
+
+  /**
+   * Detect SQL injection patterns
+   */
+  const detectSQLInjection = (input) => {
+    if (typeof input !== 'string') return false;
+
+    const sqlPatterns = [
+      // SQL keywords and operators
+      /(\b)(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|SCRIPT|JAVASCRIPT|ONERROR|ONLOAD)(\b)/gi,
+      // SQL comments
+      /(--|#|\/\*|\*\/|;)/g,
+      // SQL logic operators
+      /(\bOR\b|\bAND\b)(\s*)(1\s*=\s*1|'.*'|".*")/gi,
+      // Common SQL injection attempts
+      /(\d+\s*=\s*\d+|'\s*=\s*'|"\s*=\s*")/g,
+      // Escaped quotes
+      /\\['"`]/g,
+      // Stacked queries
+      /;\s*\w+/g,
+      // Hex encoding (x'...')
+      /0x[0-9a-f]+/gi,
+      // Command execution patterns
+      /(\bexec\b|\bexecute\b|\bscript\b)/gi,
+      // LDAP injection
+      /[\*\(\)\\\&\|]/g
+    ];
+
+    for (let pattern of sqlPatterns) {
+      if (pattern.test(input)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Detect XSS injection patterns
+   */
+  const detectXSSInjection = (input) => {
+    if (typeof input !== 'string') return false;
+
+    const xssPatterns = [
+      // Script tags
+      /<script[^>]*>[\s\S]*?<\/script>/gi,
+      // Event handlers
+      /on\w+\s*=\s*["'][^"']*["']/gi,
+      // JavaScript protocol
+      /javascript:/gi,
+      // Data URIs with script
+      /data:text\/html/gi,
+      // SVG with script
+      /<svg[^>]*onload/gi,
+      // Iframe injection
+      /<iframe[^>]*>/gi,
+      // Object/embed tags
+      /<(object|embed)[^>]*>/gi,
+      // Meta refresh
+      /<meta[^>]*refresh/gi,
+      // Form injection
+      /<form[^>]*>/gi,
+      // Link with javascript
+      /<a[^>]*href\s*=\s*"javascript:/gi
+    ];
+
+    for (let pattern of xssPatterns) {
+      if (pattern.test(input)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Detect NoSQL injection patterns
+   */
+  const detectNoSQLInjection = (input) => {
+    if (typeof input !== 'string') return false;
+
+    // NoSQL injection patterns
+    const noSqlPatterns = [
+      // MongoDB operators
+      /(\$where|\$ne|\$gt|\$lt|\$exists|\$regex|\$or)/gi,
+      // JSON with operators
+      /{"[^"]*":\s*{"\$[a-z]+"/gi,
+      // Multiple colons (suspicious in usernames/emails)
+      /::+/g
+    ];
+
+    for (let pattern of noSqlPatterns) {
+      if (pattern.test(input)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Detect LDAP injection patterns
+   */
+  const detectLDAPInjection = (input) => {
+    if (typeof input !== 'string') return false;
+
+    // LDAP injection patterns
+    const ldapPatterns = [
+      /[*()\\&|]/g, // LDAP filter special chars
+      /\*/g // Wildcard abuse
+    ];
+
+    // Only flag if multiple LDAP chars present (to avoid false positives)
+    let matchCount = 0;
+    for (let pattern of ldapPatterns) {
+      if (pattern.test(input)) {
+        matchCount++;
+      }
+    }
+    return matchCount > 1;
+  };
+
+  /**
+   * Detect command injection patterns
+   */
+  const detectCommandInjection = (input) => {
+    if (typeof input !== 'string') return false;
+
+    // Command injection patterns
+    const commandPatterns = [
+      // Shell metacharacters
+      /[;&|`$()]/g,
+      // Command separators
+      /(\|\||&&|;|&|\||`)/g,
+      // Backticks with commands
+      /`[^`]*`/g,
+      // Command substitution
+      /\$\([^)]*\)/g,
+      // Process substitution
+      /<\([^)]*\)/g
+    ];
+
+    // Only flag if clearly suspicious patterns present
+    let matchCount = 0;
+    for (let pattern of commandPatterns) {
+      const match = input.match(pattern);
+      if (match && match.length > 1) {
+        matchCount++;
+      }
+    }
+    return matchCount > 1;
+  };
+
+  /**
+   * Path traversal detection
+   */
+  const detectPathTraversal = (input) => {
+    if (typeof input !== 'string') return false;
+
+    // Path traversal patterns
+    const pathPatterns = [
+      /\.\.\//g,
+      /\.\.\\/g,
+      /\.\.%2f/gi,
+      /\.\.%5c/gi,
+      /^\/[a-z]:/gi, // Drive letters on Windows
+      /etc\/passwd/gi,
+      /windows\/system32/gi,
+      /winnt\/system32/gi
+    ];
+
+    for (let pattern of pathPatterns) {
+      if (pattern.test(input)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Comprehensive input validation
+   */
+  const validateInputSecurity = (fieldName, input) => {
+    if (typeof input !== 'string') {
+      return { valid: false, threat: 'Non-string input detected' };
+    }
+
+    // Check length (prevent buffer overflow)
+    const maxLengths = {
+      'name': 100,
+      'email': 255,
+      'message': 5000
+    };
+
+    if (maxLengths[fieldName] && input.length > maxLengths[fieldName]) {
+      return { valid: false, threat: 'Input exceeds maximum length' };
+    }
+
+    // Check for SQL injection
+    if (detectSQLInjection(input)) {
+      return { valid: false, threat: 'SQL injection attempt detected' };
+    }
+
+    // Check for XSS injection
+    if (detectXSSInjection(input)) {
+      return { valid: false, threat: 'XSS injection attempt detected' };
+    }
+
+    // Check for NoSQL injection
+    if (detectNoSQLInjection(input)) {
+      return { valid: false, threat: 'NoSQL injection attempt detected' };
+    }
+
+    // Check for LDAP injection
+    if (detectLDAPInjection(input)) {
+      return { valid: false, threat: 'LDAP injection attempt detected' };
+    }
+
+    // Check for command injection
+    if (detectCommandInjection(input)) {
+      return { valid: false, threat: 'Command injection attempt detected' };
+    }
+
+    // Check for path traversal
+    if (detectPathTraversal(input)) {
+      return { valid: false, threat: 'Path traversal attempt detected' };
+    }
+
+    return { valid: true, threat: null };
   };
 
   /**
@@ -361,7 +595,14 @@ const SecurityHelper = (() => {
     escapeHTML,
     sanitizeInput,
     validateHoneypot,
-    checkRateLimit
+    checkRateLimit,
+    detectSQLInjection,
+    detectXSSInjection,
+    detectNoSQLInjection,
+    detectLDAPInjection,
+    detectCommandInjection,
+    detectPathTraversal,
+    validateInputSecurity
   };
 })();
 
@@ -755,6 +996,36 @@ const FormHandler = (() => {
     const name = SecurityHelper.sanitizeInput(nameInput.value);
     const email = SecurityHelper.sanitizeInput(emailInput.value);
     const message = SecurityHelper.sanitizeInput(messageInput.value);
+
+    // ================================================================
+    // SECURITY CHECK 3: Injection attack detection
+    // ================================================================
+    const nameSecurityCheck = SecurityHelper.validateInputSecurity('name', nameInput.value);
+    if (!nameSecurityCheck.valid) {
+      document.getElementById('name-error').textContent = `Security violation: ${nameSecurityCheck.threat}`;
+      document.getElementById('name-error').style.display = 'block';
+      nameInput.classList.add('form-input-error');
+      console.warn(`Injection attempt blocked in name field: ${nameSecurityCheck.threat}`);
+      return;
+    }
+
+    const emailSecurityCheck = SecurityHelper.validateInputSecurity('email', emailInput.value);
+    if (!emailSecurityCheck.valid) {
+      document.getElementById('email-error').textContent = `Security violation: ${emailSecurityCheck.threat}`;
+      document.getElementById('email-error').style.display = 'block';
+      emailInput.classList.add('form-input-error');
+      console.warn(`Injection attempt blocked in email field: ${emailSecurityCheck.threat}`);
+      return;
+    }
+
+    const messageSecurityCheck = SecurityHelper.validateInputSecurity('message', messageInput.value);
+    if (!messageSecurityCheck.valid) {
+      document.getElementById('message-error').textContent = `Security violation: ${messageSecurityCheck.threat}`;
+      document.getElementById('message-error').style.display = 'block';
+      messageInput.classList.add('form-input-error');
+      console.warn(`Injection attempt blocked in message field: ${messageSecurityCheck.threat}`);
+      return;
+    }
 
     // Final validation before submission
     if (!isNameValid(name)) {
