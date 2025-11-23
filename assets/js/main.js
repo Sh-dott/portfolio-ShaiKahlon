@@ -323,6 +323,55 @@ const FormHandler = (() => {
   };
 
   /**
+   * Detect if username part is gibberish or invalid
+   * Examples: fkr, xyz, asfj, qwerty, test, admin, user, etc.
+   */
+  const isValidUsername = (username) => {
+    const lowerUsername = username.toLowerCase();
+
+    // Reject generic/test usernames
+    const genericNames = [
+      'test', 'admin', 'user', 'demo', 'guest', 'noreply',
+      'no-reply', 'support', 'info', 'contact', 'hello',
+      'example', 'sample', 'temp', 'tmp', 'new', 'test123'
+    ];
+
+    if (genericNames.includes(lowerUsername)) {
+      return { valid: false, reason: 'generic', value: lowerUsername };
+    }
+
+    // Reject keyboard patterns (qwerty, asdf, zxcv, etc.)
+    const keyboardPatterns = [
+      'asdf', 'qwerty', 'qwert', 'qwer', 'qwe',
+      'zxcv', 'zxc', 'zx', 'asd', 'asfj', 'dfgh',
+      '1234', '123', '12345', 'abcd', 'abc'
+    ];
+
+    if (keyboardPatterns.some(pattern => lowerUsername.includes(pattern))) {
+      return { valid: false, reason: 'keyboard', value: lowerUsername };
+    }
+
+    // Reject very short usernames (less than 3 chars)
+    if (username.length < 3) {
+      return { valid: false, reason: 'short', value: lowerUsername };
+    }
+
+    // Reject usernames with too few vowels (gibberish detection)
+    const vowels = (lowerUsername.match(/[aeiou]/gi) || []).length;
+    const vowelRatio = vowels / username.length;
+    if (vowelRatio < 0.2 && username.length > 3) {
+      return { valid: false, reason: 'gibberish', value: lowerUsername };
+    }
+
+    // Reject usernames with excessive consonants in a row (6+ consonants)
+    if (/[bcdfghjklmnpqrstvwxyz]{6,}/.test(lowerUsername)) {
+      return { valid: false, reason: 'gibberish', value: lowerUsername };
+    }
+
+    return { valid: true, reason: null, value: lowerUsername };
+  };
+
+  /**
    * Detect if domain is a typo of a common email provider
    */
   const detectDomainTypo = (domain) => {
@@ -341,7 +390,7 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate email format and detect domain typos
+   * Validate email: check username and domain
    */
   const validateEmailLocal = (email) => {
     if (!email) return { valid: true, error: null };
@@ -350,9 +399,25 @@ const FormHandler = (() => {
       return { valid: false, error: 'Invalid email format' };
     }
 
-    const domain = email.split('@')[1];
-    const typoCheck = detectDomainTypo(domain);
+    const [username, domain] = email.split('@');
 
+    // Check username first
+    const usernameCheck = isValidUsername(username);
+    if (!usernameCheck.valid) {
+      const reasons = {
+        generic: 'That username looks like a test account. Please use a real name or email.',
+        keyboard: 'That username looks like a keyboard pattern. Please use a real name.',
+        short: 'Username is too short. Use at least 3 characters.',
+        gibberish: 'That username looks like gibberish. Please use a real name.'
+      };
+      return {
+        valid: false,
+        error: reasons[usernameCheck.reason] || 'Invalid username format'
+      };
+    }
+
+    // Check domain for typos (only if username is valid)
+    const typoCheck = detectDomainTypo(domain);
     if (typoCheck.typo) {
       return {
         valid: false,
