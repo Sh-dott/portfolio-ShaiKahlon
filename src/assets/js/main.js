@@ -847,13 +847,36 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate name (letters, spaces, hyphens, apostrophes only)
+   * Validate name - must be real human name
    */
   const validateName = (e) => {
     const name = e.target.value.trim();
     const errorDiv = document.getElementById('name-error');
 
-    if (name && !nameRegex.test(name)) {
+    if (!name) {
+      errorDiv.style.display = 'none';
+      e.target.classList.remove('form-input-error');
+      return;
+    }
+
+    // Check format first (no numbers, special chars)
+    if (!nameRegex.test(name)) {
+      errorDiv.textContent = 'Name can only contain letters, spaces, hyphens, and apostrophes';
+      errorDiv.style.display = 'block';
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
+    // Check if it's a real name using NamesDatabase
+    if (typeof NamesDatabase !== 'undefined' && !NamesDatabase.isRealName(name)) {
+      const suggestions = NamesDatabase.getNameSuggestions(name);
+
+      let message = 'This doesn\'t appear to be a real human name';
+      if (suggestions.length > 0) {
+        message += `. Did you mean: ${suggestions.join(', ')}?`;
+      }
+
+      errorDiv.textContent = message;
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
     } else {
@@ -893,20 +916,82 @@ const FormHandler = (() => {
     const message = e.target.value.trim();
     const errorDiv = document.getElementById('message-error');
 
-    if (message) {
+    if (!message) {
+      errorDiv.style.display = 'none';
+      e.target.classList.remove('form-input-error');
+      return;
+    }
+
+    // Use MessageAnalyzer for comprehensive message validation
+    if (typeof MessageAnalyzer !== 'undefined') {
+      const validation = MessageAnalyzer.validateMessage(message);
+
+      if (!validation.valid) {
+        // Display comprehensive error message with all issues
+        let errorText = 'Message validation failed:\n';
+        validation.issues.forEach(issue => {
+          errorText += `• ${issue}\n`;
+        });
+
+        // Add suggestions if available
+        const suggestions = MessageAnalyzer.getSuggestions(message);
+        if (suggestions.length > 0) {
+          errorText += '\nSuggestions:\n';
+          suggestions.forEach(suggestion => {
+            errorText += `• ${suggestion}\n`;
+          });
+        }
+
+        errorDiv.textContent = errorText;
+        errorDiv.style.display = 'block';
+        e.target.classList.add('form-input-error');
+      } else {
+        // Message is valid - show quality feedback if not perfect
+        const quality = MessageAnalyzer.calculateQuality(message);
+        const feedback = MessageAnalyzer.getQualityFeedback(message);
+
+        if (quality >= 70) {
+          // Good quality message - no error display needed
+          errorDiv.style.display = 'none';
+          e.target.classList.remove('form-input-error');
+        } else if (quality >= 50) {
+          // Message is acceptable but could be better
+          const suggestions = MessageAnalyzer.getSuggestions(message);
+          let feedbackText = `Message quality: ${Math.round(quality)}/100. `;
+
+          if (feedback.warning) {
+            feedbackText += feedback.warning;
+          }
+
+          if (feedback.suggestion) {
+            feedbackText += ` ${feedback.suggestion}`;
+          }
+
+          if (suggestions.length > 0) {
+            feedbackText += '\n\nSuggestions:\n';
+            suggestions.forEach(suggestion => {
+              feedbackText += `• ${suggestion}\n`;
+            });
+          }
+
+          errorDiv.textContent = feedbackText;
+          errorDiv.style.display = 'block';
+          e.target.classList.remove('form-input-error'); // Valid but with suggestions
+        }
+      }
+    } else {
+      // Fallback if MessageAnalyzer is not available
       const words = message.split(/\s+/).filter(word => word.length > 0);
       const isOnlyNumbers = /^\d+$/.test(message.replace(/\s/g, ''));
 
       if (words.length < 5 || isOnlyNumbers) {
+        errorDiv.textContent = 'Message must contain at least 5 words and not be only numbers';
         errorDiv.style.display = 'block';
         e.target.classList.add('form-input-error');
       } else {
         errorDiv.style.display = 'none';
         e.target.classList.remove('form-input-error');
       }
-    } else {
-      errorDiv.style.display = 'none';
-      e.target.classList.remove('form-input-error');
     }
   };
 
@@ -925,6 +1010,14 @@ const FormHandler = (() => {
 
   const isMessageValid = (message) => {
     if (!message) return false;
+
+    // Use MessageAnalyzer for validation if available
+    if (typeof MessageAnalyzer !== 'undefined') {
+      const validation = MessageAnalyzer.validateMessage(message);
+      return validation.valid;
+    }
+
+    // Fallback validation
     const words = message.split(/\s+/).filter(word => word.length > 0);
     const isOnlyNumbers = /^\d+$/.test(message.replace(/\s/g, ''));
     return words.length >= 5 && !isOnlyNumbers;
