@@ -3,17 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="description" content="Shai's professional portfolio showcasing web development expertise, projects, and skills">
-  <meta name="keywords" content="portfolio, developer, web development, projects">
+  <meta name="keywords" content="portfolio, developer, web development, projects, fraud analyst, threat detection">
   <meta name="author" content="Shai">
   <meta name="theme-color" content="#3b82f6">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
 
   <title>Shai's Portfolio</title>
 
-  <!-- Stylesheets -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://formsubmit.co; frame-ancestors 'none'; upgrade-insecure-requests">
+
+  <!-- Stylesheets with Subresource Integrity (SRI) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" integrity="sha384-L7MWcto7CjbRV5ytMLl8OKU/t9YqIKpVqCXbQpJlRc6z1DWy5xJSMq8gnQjWSu0p" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVJkEZSMUkrQ6usKd8ZXsPLscWOuOh/hxLuY3G5dSohN00NTYQAm8BAscCSlqd+5qJS3Z0fy3q0A==" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="assets/css/styles.css">
+
+  <!-- Preconnect to external domains for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="https://formsubmit.co">
 </head>
 <body>
   <!-- Navigation Header -->
@@ -350,6 +361,20 @@
 
           <!-- Contact Form -->
           <form class="contact-form" method="POST" action="#">
+            <!-- CSRF Token for security -->
+            <input type="hidden" name="csrf_token" id="csrf_token" value="">
+
+            <!-- Honeypot field (hidden from users, catches bots) -->
+            <input
+              type="text"
+              name="website"
+              id="website"
+              style="display: none; position: absolute; left: -9999px;"
+              tabindex="-1"
+              autocomplete="off"
+              aria-hidden="true"
+            >
+
             <div class="form-group">
               <label for="name" class="form-label">Name</label>
               <input
@@ -360,6 +385,7 @@
                 required
                 aria-required="true"
                 placeholder="John Doe"
+                maxlength="100"
               >
               <div class="form-error" id="name-error" style="display: none;">
                 Please enter a valid name (letters and spaces only)
@@ -376,6 +402,7 @@
                 required
                 aria-required="true"
                 placeholder="your@email.com"
+                maxlength="255"
               >
               <div class="form-error" id="email-error" style="display: none;">
                 Please enter a valid email address (e.g., name@example.com)
@@ -391,6 +418,7 @@
                 required
                 aria-required="true"
                 placeholder="Tell me about your project..."
+                maxlength="5000"
               ></textarea>
               <div class="form-error" id="message-error" style="display: none;">
                 Message must be at least 5 words and contain more than just numbers

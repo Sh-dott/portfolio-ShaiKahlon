@@ -274,6 +274,98 @@ const ParticleSystem = (() => {
 })();
 
 // ============================================================================
+// Security Module
+// ============================================================================
+
+const SecurityHelper = (() => {
+  /**
+   * Generate CSRF token
+   */
+  const generateCSRFToken = () => {
+    return btoa(Math.random().toString()).substring(0, 32);
+  };
+
+  /**
+   * Store CSRF token in sessionStorage
+   */
+  const setCSRFToken = () => {
+    const token = generateCSRFToken();
+    sessionStorage.setItem('csrf_token', token);
+    return token;
+  };
+
+  /**
+   * Get CSRF token from sessionStorage
+   */
+  const getCSRFToken = () => {
+    return sessionStorage.getItem('csrf_token') || setCSRFToken();
+  };
+
+  /**
+   * HTML escape to prevent XSS
+   */
+  const escapeHTML = (text) => {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, char => map[char]);
+  };
+
+  /**
+   * Sanitize input text
+   */
+  const sanitizeInput = (input) => {
+    if (typeof input !== 'string') return '';
+    // Remove any HTML/script tags
+    return input.replace(/<[^>]*>/g, '').trim();
+  };
+
+  /**
+   * Validate honeypot field (should be empty)
+   */
+  const validateHoneypot = (honeypotValue) => {
+    // If honeypot field has any value, it's a bot
+    return !honeypotValue || honeypotValue.trim() === '';
+  };
+
+  /**
+   * Rate limiting check (max 5 submissions per minute per IP simulation)
+   */
+  const checkRateLimit = () => {
+    const now = Date.now();
+    const key = 'form_submission_times';
+    const submissions = JSON.parse(localStorage.getItem(key) || '[]');
+
+    // Remove submissions older than 1 minute
+    const recentSubmissions = submissions.filter(time => now - time < 60000);
+
+    // Check if user has submitted more than 5 times in the last minute
+    if (recentSubmissions.length >= 5) {
+      return false; // Rate limit exceeded
+    }
+
+    // Add current submission time
+    recentSubmissions.push(now);
+    localStorage.setItem(key, JSON.stringify(recentSubmissions));
+    return true;
+  };
+
+  return {
+    generateCSRFToken,
+    setCSRFToken,
+    getCSRFToken,
+    escapeHTML,
+    sanitizeInput,
+    validateHoneypot,
+    checkRateLimit
+  };
+})();
+
+// ============================================================================
 // Module: Form Handler
 // ============================================================================
 
@@ -478,6 +570,14 @@ const FormHandler = (() => {
   const init = () => {
     const contactForm = document.querySelector('.contact-form');
     if (contactForm) {
+      // ================================================================
+      // SECURITY: Initialize CSRF token
+      // ================================================================
+      const csrfTokenField = document.getElementById('csrf_token');
+      if (csrfTokenField) {
+        csrfTokenField.value = SecurityHelper.getCSRFToken();
+      }
+
       contactForm.addEventListener('submit', handleFormSubmit);
 
       // Add real-time validation for all fields
@@ -630,11 +730,31 @@ const FormHandler = (() => {
     const nameInput = form.querySelector('#name');
     const emailInput = form.querySelector('#email');
     const messageInput = form.querySelector('#message');
+    const honeypotInput = form.querySelector('#website');
     const submitBtn = form.querySelector('.form-submit');
 
-    const name = nameInput.value.trim();
-    const email = emailInput.value.trim();
-    const message = messageInput.value.trim();
+    // ================================================================
+    // SECURITY CHECK 1: Honeypot validation (bot detection)
+    // ================================================================
+    if (!SecurityHelper.validateHoneypot(honeypotInput.value)) {
+      console.warn('Honeypot field filled - suspected bot submission blocked');
+      // Silently fail - don't inform the bot
+      return;
+    }
+
+    // ================================================================
+    // SECURITY CHECK 2: Rate limiting
+    // ================================================================
+    if (!SecurityHelper.checkRateLimit()) {
+      document.getElementById('email-error').textContent = 'Too many submissions. Please wait a moment before trying again.';
+      document.getElementById('email-error').style.display = 'block';
+      return;
+    }
+
+    // Sanitize inputs before validation
+    const name = SecurityHelper.sanitizeInput(nameInput.value);
+    const email = SecurityHelper.sanitizeInput(emailInput.value);
+    const message = SecurityHelper.sanitizeInput(messageInput.value);
 
     // Final validation before submission
     if (!isNameValid(name)) {
@@ -662,11 +782,16 @@ const FormHandler = (() => {
 
     // Create FormData for FormSubmit service
     const formData = new FormData();
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('message', message);
+
+    // ================================================================
+    // SECURITY: Only send sanitized data
+    // ================================================================
+    formData.append('name', SecurityHelper.sanitizeInput(name));
+    formData.append('email', SecurityHelper.sanitizeInput(email));
+    formData.append('message', SecurityHelper.sanitizeInput(message));
     formData.append('_captcha', 'false');
-    // Don't use _next - we handle success with JavaScript instead
+    // Add CSRF token for additional security
+    formData.append('csrf_token', SecurityHelper.getCSRFToken());
 
     // Send via FormSubmit service
     fetch('https://formsubmit.co/kahlonshai1@gmail.com', {

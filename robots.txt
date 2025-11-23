@@ -1,0 +1,32 @@
+# robots.txt - Controls search engine crawler access
+# ============================================================================
+
+# Allow all search engines
+User-agent: *
+Allow: /
+
+# Disallow access to sensitive areas
+Disallow: /.git
+Disallow: /.gitignore
+Disallow: /.htaccess
+Disallow: /src/
+Disallow: /admin/
+Disallow: /private/
+Disallow: /temp/
+Disallow: /node_modules/
+Disallow: /package-lock.json
+Disallow: /package.json
+
+# Crawl delay (be nice to servers)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://Sh-dott.github.io/portfolio-ShaiKahlon/sitemap.xml
+
+# ============================================================================
+# Security Notes:
+# ============================================================================
+# - This file prevents search engines from indexing source files
+# - Protects .git, .htaccess, and configuration files
+# - Sets reasonable crawl delays to prevent overloading
+# - Points to sitemap for better indexing
