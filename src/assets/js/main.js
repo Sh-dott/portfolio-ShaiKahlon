@@ -680,14 +680,14 @@ const FormHandler = (() => {
         console.log('FormSubmit response status:', response.status);
         if (response.ok || response.status === 200) {
           console.log('Form submitted successfully');
-          showSuccessMessage(form);
-          form.reset();
-          // Clear error message on success
+          // Clear all error messages on success
           document.getElementById('email-error').style.display = 'none';
           document.getElementById('email-error').textContent = '';
-          // Prevent any default behaviors
-          submitBtn.textContent = originalText;
-          submitBtn.disabled = false;
+          document.getElementById('name-error').style.display = 'none';
+          document.getElementById('message-error').style.display = 'none';
+          // Show success message and reset form
+          showSuccessMessage(form);
+          form.reset();
           return false;
         } else {
           console.log('Form submission response not ok:', response.status);
@@ -708,16 +708,42 @@ const FormHandler = (() => {
    */
   const showSuccessMessage = (form) => {
     const submitBtn = form.querySelector('.form-submit');
-    const originalText = submitBtn.textContent;
 
+    // Show success message on button
     submitBtn.textContent = 'Message Sent! ✓';
     submitBtn.disabled = true;
+    submitBtn.style.backgroundColor = '#10b981'; // Green color
+    submitBtn.style.cursor = 'default';
 
+    // Show success notification to user
+    const successMessage = document.createElement('div');
+    successMessage.className = 'form-success-message';
+    successMessage.innerHTML = `
+      <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; margin-top: 16px; border-radius: 4px; color: #065f46;">
+        <h4 style="margin: 0 0 8px 0; font-weight: 600; color: #047857;">Thank You! ✓</h4>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5;">
+          We've received your message and we'll reach out to you shortly.
+          <br>
+          Looking forward to collaborating with you!
+        </p>
+      </div>
+    `;
+
+    // Insert success message before form
+    const contactContent = form.parentElement;
+    contactContent.insertBefore(successMessage, form);
+
+    // Reset button and form after delay
     setTimeout(() => {
-      submitBtn.textContent = originalText;
+      submitBtn.textContent = 'Send Message';
       submitBtn.disabled = false;
+      submitBtn.style.backgroundColor = ''; // Reset to original color
+      submitBtn.style.cursor = 'pointer';
       setupFormValidation(form); // Re-enable validation
-    }, 3000);
+
+      // Remove success message
+      successMessage.remove();
+    }, 5000);
   };
 
   return { init };
