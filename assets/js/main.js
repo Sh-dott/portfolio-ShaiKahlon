@@ -715,35 +715,81 @@ const FormHandler = (() => {
     submitBtn.style.backgroundColor = '#10b981'; // Green color
     submitBtn.style.cursor = 'default';
 
-    // Show success notification to user
+    // Create floating notification (fixed position - doesn't affect layout)
     const successMessage = document.createElement('div');
-    successMessage.className = 'form-success-message';
-    successMessage.innerHTML = `
-      <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; margin-top: 16px; border-radius: 4px; color: #065f46;">
-        <h4 style="margin: 0 0 8px 0; font-weight: 600; color: #047857;">Thank You! ✓</h4>
-        <p style="margin: 0; font-size: 14px; line-height: 1.5;">
-          We've received your message and we'll reach out to you shortly.
-          <br>
-          Looking forward to collaborating with you!
-        </p>
-      </div>
+    successMessage.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #ecfdf5;
+      border: 2px solid #10b981;
+      border-radius: 8px;
+      padding: 32px;
+      color: #065f46;
+      z-index: 9999;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      text-align: center;
+      animation: slideIn 0.3s ease-out;
     `;
 
-    // Insert success message before form
-    const contactContent = form.parentElement;
-    contactContent.insertBefore(successMessage, form);
+    successMessage.innerHTML = `
+      <h4 style="margin: 0 0 12px 0; font-weight: 700; font-size: 20px; color: #047857;">Thank You! ✓</h4>
+      <p style="margin: 0; font-size: 15px; line-height: 1.6;">
+        We've received your message and we'll reach out to you shortly.
+        <br>
+        Looking forward to collaborating with you!
+      </p>
+    `;
+
+    document.body.appendChild(successMessage);
+
+    // Add animation keyframes if not already present
+    if (!document.querySelector('style[data-toast-animation]')) {
+      const style = document.createElement('style');
+      style.setAttribute('data-toast-animation', 'true');
+      style.textContent = `
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        @keyframes slideOut {
+          from {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     // Reset button and form after delay
     setTimeout(() => {
-      submitBtn.textContent = 'Send Message';
-      submitBtn.disabled = false;
-      submitBtn.style.backgroundColor = ''; // Reset to original color
-      submitBtn.style.cursor = 'pointer';
-      setupFormValidation(form); // Re-enable validation
+      // Fade out animation
+      successMessage.style.animation = 'slideOut 0.3s ease-out forwards';
 
-      // Remove success message
-      successMessage.remove();
-    }, 5000);
+      setTimeout(() => {
+        submitBtn.textContent = 'Send Message';
+        submitBtn.disabled = false;
+        submitBtn.style.backgroundColor = ''; // Reset to original color
+        submitBtn.style.cursor = 'pointer';
+        setupFormValidation(form); // Re-enable validation
+
+        // Remove success message from DOM
+        successMessage.remove();
+      }, 300); // Wait for fade out animation to complete
+    }, 4000); // Display for 4 seconds as requested
   };
 
   return { init };
