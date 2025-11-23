@@ -660,42 +660,38 @@ const FormHandler = (() => {
     submitBtn.textContent = 'Sending message...';
     submitBtn.disabled = true;
 
-    // Prepare email content for Formspree
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('message', message);
-    formData.append('_captcha', 'false');
-    formData.append('_next', window.location.href);
+    // Prepare email content for mailto
+    const emailSubject = encodeURIComponent(`New Contact Form Submission from ${name}`);
+    const emailBody = encodeURIComponent(
+      `Name: ${name}\n` +
+      `Email: ${email}\n` +
+      `Message:\n${message}\n\n` +
+      `---\n` +
+      `Sent from portfolio contact form`
+    );
 
-    // Send email via Formspree
-    fetch('https://formspree.io/f/xvgojokv', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-      .then(response => {
-        if (response.ok) {
-          showSuccessMessage(form);
-          form.reset();
-          // Clear error message on success
-          document.getElementById('email-error').style.display = 'none';
-          document.getElementById('email-error').textContent = '';
-        } else {
-          throw new Error('Form submission failed');
-        }
-      })
-      .catch(error => {
-        console.error('Error submitting form:', error);
-        document.getElementById('email-error').textContent = 'Error sending message. Please try again.';
-        document.getElementById('email-error').style.display = 'block';
-      })
-      .finally(() => {
-        submitBtn.textContent = originalText;
-        submitBtn.disabled = false;
-      });
+    // Send email via mailto link (opens user's email client)
+    const mailtoLink = `mailto:kahlonshai1@gmail.com?subject=${emailSubject}&body=${emailBody}&cc=${email}`;
+
+    try {
+      // Open the mailto link
+      window.location.href = mailtoLink;
+
+      // Show success message after a short delay
+      setTimeout(() => {
+        showSuccessMessage(form);
+        form.reset();
+        // Clear error message on success
+        document.getElementById('email-error').style.display = 'none';
+        document.getElementById('email-error').textContent = '';
+      }, 500);
+    } catch (error) {
+      console.error('Error opening mail client:', error);
+      document.getElementById('email-error').textContent = 'Error sending message. Please try again.';
+      document.getElementById('email-error').style.display = 'block';
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    }
   };
 
   /**
