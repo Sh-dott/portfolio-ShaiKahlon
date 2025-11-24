@@ -880,40 +880,44 @@ const FormHandler = (() => {
       return;
     }
 
-    // Stage 1: Check database first
-    let isInDatabase = false;
-    if (typeof NamesDatabase !== 'undefined') {
-      isInDatabase = NamesDatabase.isRealName(name);
-    }
-
-    // Stage 2: If not in database, use semantic analysis
-    let isValidName = isInDatabase;
+    // ===== ADVANCED ML-BASED VALIDATION =====
+    // Use machine learning validator with database
     let validationResult = null;
+    let isValidName = false;
 
-    if (!isInDatabase && typeof SemanticNameValidator !== 'undefined') {
-      validationResult = SemanticNameValidator.validateName(name);
+    if (typeof MLNameValidator !== 'undefined' && typeof NamesDatabase !== 'undefined') {
+      // Get database names for similarity matching
+      const databaseNames = Array.from(NamesDatabase.getFirstNames());
+
+      // Use ML validator with database context
+      validationResult = MLNameValidator.validateName(name, databaseNames);
       isValidName = validationResult.valid;
+    } else {
+      // Fallback if ML validator not loaded
+      const isInDatabase = typeof NamesDatabase !== 'undefined' && NamesDatabase.isRealName(name);
+      isValidName = isInDatabase;
+
+      if (!isInDatabase && typeof SemanticNameValidator !== 'undefined') {
+        validationResult = SemanticNameValidator.validateName(name);
+        isValidName = validationResult.valid;
+      }
     }
 
     // Show appropriate feedback
     if (!isValidName) {
       let message = '';
 
-      if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
-        message = 'This doesn\'t look like a real human name:\n';
-        validationResult.issues.forEach(issue => {
-          message += `• ${issue}\n`;
-        });
-      } else if (!isInDatabase) {
-        // Try to give helpful suggestions from database
-        const suggestions = typeof NamesDatabase !== 'undefined'
-          ? NamesDatabase.getNameSuggestions(name)
-          : [];
-
-        message = 'This doesn\'t appear to be a real human name';
-        if (suggestions.length > 0) {
-          message += `. Did you mean: ${suggestions.join(', ')}?`;
+      if (validationResult) {
+        if (validationResult.reason) {
+          message = validationResult.reason;
         }
+
+        // Add suggestions if available
+        if (validationResult.suggestions && validationResult.suggestions.length > 0) {
+          message += `. Did you mean: ${validationResult.suggestions.join(', ')}?`;
+        }
+      } else {
+        message = 'This doesn\'t appear to be a real human name.';
       }
 
       errorDiv.textContent = message;
