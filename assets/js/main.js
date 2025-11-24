@@ -887,7 +887,7 @@ const FormHandler = (() => {
 
     if (typeof MLNameValidator !== 'undefined' && typeof NamesDatabase !== 'undefined') {
       // Get database names for similarity matching
-      const databaseNames = Array.from(NamesDatabase.getFirstNames());
+      const databaseNames = NamesDatabase.FIRST_NAMES ? Array.from(NamesDatabase.FIRST_NAMES) : [];
 
       // Use ML validator with database context
       validationResult = MLNameValidator.validateName(name, databaseNames);
