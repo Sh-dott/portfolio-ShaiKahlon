@@ -40,6 +40,27 @@ const SemanticNameValidator = (() => {
     'ski', 'ska', 'czyk', 'wicz', 'sky', 'enko', 'dze', 'dze'
   ]);
 
+  // Blacklist of common slang, abbreviations, and non-names
+  // These should NEVER pass validation even if they look phonetically valid
+  const BLACKLIST = new Set([
+    'nerd', 'geek', 'dork', 'lol', 'omg', 'wtf', 'btw', 'fyi', 'asap', 'aka',
+    'test', 'admin', 'user', 'guest', 'root', 'temp', 'test', 'demo', 'fake',
+    'noname', 'nobody', 'unknown', 'anon', 'spam', 'bot', 'robot', 'script',
+    'code', 'html', 'java', 'python', 'css', 'json', 'xml', 'api', 'sql',
+    'hack', 'virus', 'trojan', 'malware', 'worm', 'exploit', 'payload',
+    'admin', 'root', 'sudo', 'pass', 'password', 'login', 'user', 'guest',
+    'default', 'system', 'kernel', 'driver', 'config', 'debug',
+    'null', 'void', 'error', 'fail', 'crash', 'bug', 'glitch', 'lag',
+    'lmao', 'rofl', 'smh', 'fml', 'wtf', 'omg', 'lol', 'lololol',
+    'aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh', 'iii', 'jjj',
+    'kkk', 'lll', 'mmm', 'nnn', 'ooo', 'ppp', 'qqq', 'rrr', 'sss', 'ttt',
+    'uuu', 'vvv', 'www', 'xxx', 'yyy', 'zzz',
+    'test1', 'test2', 'test123', 'user1', 'admin1', 'test456',
+    'dummyname', 'dummy', 'example', 'sample', 'placeholder',
+    'firstname', 'lastname', 'middlename', 'fullname',
+    'asdf', 'qwerty', 'qwer', 'zxcv', 'abcd', 'abcdef'
+  ]);
+
   /**
    * Calculate vowel percentage in a string
    */
@@ -110,6 +131,9 @@ const SemanticNameValidator = (() => {
     if (!str || str.length < 3) return false;
 
     const lower = str.toLowerCase();
+
+    // FIRST: Check blacklist of non-names (slang, abbreviations, keywords)
+    if (BLACKLIST.has(lower)) return false;
 
     // Check basic criteria
     if (hasRepeatedLetters(lower)) return false; // "aaaa" is not a name

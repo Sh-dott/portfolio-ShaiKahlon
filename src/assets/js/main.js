@@ -908,23 +908,13 @@ const FormHandler = (() => {
 
       errorDiv.textContent = message;
       errorDiv.style.display = 'block';
+      errorDiv.style.color = '#ef4444'; // Red for errors
       e.target.classList.add('form-input-error');
     } else {
-      // Valid name - show confidence if semantic analysis was used
-      if (!isInDatabase && validationResult) {
-        if (validationResult.confidence < 100) {
-          errorDiv.textContent = `✓ Recognized as name (confidence: ${Math.round(validationResult.confidence)}%)`;
-          errorDiv.style.display = 'block';
-          errorDiv.style.color = '#22c55e'; // Green
-          e.target.classList.remove('form-input-error');
-        } else {
-          errorDiv.style.display = 'none';
-          e.target.classList.remove('form-input-error');
-        }
-      } else {
-        errorDiv.style.display = 'none';
-        e.target.classList.remove('form-input-error');
-      }
+      // Valid name - hide error messages
+      errorDiv.style.display = 'none';
+      errorDiv.style.color = ''; // Reset color
+      e.target.classList.remove('form-input-error');
     }
   };
 
