@@ -862,10 +862,20 @@ const FormHandler = (() => {
       return;
     }
 
+    // Check minimum length (3+ characters required for any name)
+    if (name.length < 3) {
+      errorDiv.textContent = 'Name must be at least 3 characters long (e.g., "Dan", "Sam", "John").';
+      errorDiv.style.display = 'block';
+      errorDiv.style.color = '#ef4444'; // Red
+      e.target.classList.add('form-input-error');
+      return;
+    }
+
     // Check format first (English letters only, no numbers or special chars)
     if (!nameRegex.test(name)) {
       errorDiv.textContent = 'Please enter your name in English only (A-Z). Spaces, hyphens, and apostrophes are allowed (e.g., "John Smith", "Mary-Jane", "O\'Brien").';
       errorDiv.style.display = 'block';
+      errorDiv.style.color = '#ef4444'; // Red
       e.target.classList.add('form-input-error');
       return;
     }

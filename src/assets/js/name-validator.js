@@ -126,8 +126,10 @@ const SemanticNameValidator = (() => {
 
   /**
    * Analyze if input looks like a human name
+   * STRICT: Minimum 3 characters - no exceptions for 2-letter inputs
    */
   const looksLikeHumanName = (str) => {
+    // CRITICAL: Reject ALL 2-letter inputs - they cannot be real names
     if (!str || str.length < 3) return false;
 
     const lower = str.toLowerCase();
