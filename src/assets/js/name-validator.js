@@ -326,6 +326,18 @@ const SemanticNameValidator = (() => {
     }
 
     const lower = str.toLowerCase();
+
+    // CRITICAL: Reject blacklist entries IMMEDIATELY - no exceptions
+    if (BLACKLIST.has(lower)) {
+      return {
+        valid: false,
+        confidence: 0,
+        reason: 'This is a common word or non-name (blacklist)',
+        looksLikeName: false,
+        issues: ['This is not a real human name - it\'s a common word or slang']
+      };
+    }
+
     const confidenceScore = getNameConfidenceScore(str);
     const looksLike = looksLikeHumanName(str);
 
