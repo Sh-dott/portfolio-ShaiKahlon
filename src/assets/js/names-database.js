@@ -2449,22 +2449,31 @@ const NamesDatabase = (() => {
 
   /**
    * Check if a name exists in the database
+   * Requires at least one part of 4+ characters (real human names don't use 2-letter names)
    */
   const isRealName = (name) => {
-    if (!name || name.length < 2) return false;
+    if (!name || name.length < 4) return false; // Minimum 4 characters for a name
     const nameParts = name.trim().toLowerCase().split(/\s+/);
-    
+
+    // Filter out parts that are too short (2-3 chars are likely abbreviations, not real names)
+    const validParts = nameParts.filter(part => part.length >= 3);
+
+    if (validParts.length === 0) return false; // All parts were too short
+
     if (nameParts.length === 1) {
       const part = nameParts[0];
+      // For single name, must be 4+ characters
+      if (part.length < 4) return false;
       return FIRST_NAMES.has(part) || LAST_NAMES.has(part);
     }
-    
+
+    // For multi-part names, at least one part should be recognized
     const firstPart = nameParts[0];
     const lastPart = nameParts[nameParts.length - 1];
     const hasKnownFirst = FIRST_NAMES.has(firstPart);
     const hasKnownLast = LAST_NAMES.has(lastPart);
     const hasKnownOther = nameParts.some(part => FIRST_NAMES.has(part) || LAST_NAMES.has(part));
-    
+
     return (hasKnownFirst || hasKnownLast) || hasKnownOther;
   };
 
@@ -2499,15 +2508,28 @@ const NamesDatabase = (() => {
 
   /**
    * Get suggestions for typos using similarity matching
+   * Only returns reasonable suggestions (4+ characters, similar length to input)
    */
   const getNameSuggestions = (name, threshold = 2) => {
     const nameLower = name.toLowerCase();
+    const inputLength = nameLower.length;
     const suggestions = [];
     const allNames = Array.from(FIRST_NAMES);
-    
-    // Find similar names
+
+    // Find similar names with strict criteria:
+    // 1. Must be 4+ characters (real names are at least 4 chars)
+    // 2. Must be within 2-3 characters length of the input (similar length)
+    // 3. Must be within Levenshtein distance threshold
     const similar = allNames
       .filter(candidate => {
+        // Only suggest names that are 4+ characters
+        if (candidate.length < 4) return false;
+
+        // Only suggest if length is similar (within 2 chars difference)
+        const lengthDiff = Math.abs(candidate.length - inputLength);
+        if (lengthDiff > 2) return false;
+
+        // Check Levenshtein distance
         const distance = levenshteinDistance(nameLower, candidate);
         return distance <= threshold;
       })
@@ -2517,7 +2539,7 @@ const NamesDatabase = (() => {
         return distA - distB;
       })
       .slice(0, 5);
-    
+
     return similar;
   };
 
