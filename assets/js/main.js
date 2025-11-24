@@ -847,7 +847,10 @@ const FormHandler = (() => {
   };
 
   /**
-   * Validate name - must be real human name
+   * Validate name - uses database lookup + semantic analysis
+   * Smart two-stage validation:
+   * 1. Check if name is in database (48,605 real names)
+   * 2. If not in database, analyze if it LOOKS like a real name
    */
   const validateName = (e) => {
     const name = e.target.value.trim();
@@ -867,21 +870,61 @@ const FormHandler = (() => {
       return;
     }
 
-    // Check if it's a real name using NamesDatabase
-    if (typeof NamesDatabase !== 'undefined' && !NamesDatabase.isRealName(name)) {
-      const suggestions = NamesDatabase.getNameSuggestions(name);
+    // Stage 1: Check database first
+    let isInDatabase = false;
+    if (typeof NamesDatabase !== 'undefined') {
+      isInDatabase = NamesDatabase.isRealName(name);
+    }
 
-      let message = 'This doesn\'t appear to be a real human name';
-      if (suggestions.length > 0) {
-        message += `. Did you mean: ${suggestions.join(', ')}?`;
+    // Stage 2: If not in database, use semantic analysis
+    let isValidName = isInDatabase;
+    let validationResult = null;
+
+    if (!isInDatabase && typeof SemanticNameValidator !== 'undefined') {
+      validationResult = SemanticNameValidator.validateName(name);
+      isValidName = validationResult.valid;
+    }
+
+    // Show appropriate feedback
+    if (!isValidName) {
+      let message = '';
+
+      if (validationResult && validationResult.issues && validationResult.issues.length > 0) {
+        message = 'This doesn\'t look like a real human name:\n';
+        validationResult.issues.forEach(issue => {
+          message += `• ${issue}\n`;
+        });
+      } else if (!isInDatabase) {
+        // Try to give helpful suggestions from database
+        const suggestions = typeof NamesDatabase !== 'undefined'
+          ? NamesDatabase.getNameSuggestions(name)
+          : [];
+
+        message = 'This doesn\'t appear to be a real human name';
+        if (suggestions.length > 0) {
+          message += `. Did you mean: ${suggestions.join(', ')}?`;
+        }
       }
 
       errorDiv.textContent = message;
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
     } else {
-      errorDiv.style.display = 'none';
-      e.target.classList.remove('form-input-error');
+      // Valid name - show confidence if semantic analysis was used
+      if (!isInDatabase && validationResult) {
+        if (validationResult.confidence < 100) {
+          errorDiv.textContent = `✓ Recognized as name (confidence: ${Math.round(validationResult.confidence)}%)`;
+          errorDiv.style.display = 'block';
+          errorDiv.style.color = '#22c55e'; // Green
+          e.target.classList.remove('form-input-error');
+        } else {
+          errorDiv.style.display = 'none';
+          e.target.classList.remove('form-input-error');
+        }
+      } else {
+        errorDiv.style.display = 'none';
+        e.target.classList.remove('form-input-error');
+      }
     }
   };
 
