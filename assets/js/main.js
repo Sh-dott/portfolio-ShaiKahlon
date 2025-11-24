@@ -862,9 +862,9 @@ const FormHandler = (() => {
       return;
     }
 
-    // Check format first (no numbers, special chars)
+    // Check format first (English letters only, no numbers or special chars)
     if (!nameRegex.test(name)) {
-      errorDiv.textContent = 'Name can only contain letters, spaces, hyphens, and apostrophes';
+      errorDiv.textContent = 'Please enter your name in English only (A-Z). Spaces, hyphens, and apostrophes are allowed (e.g., "John Smith", "Mary-Jane", "O\'Brien").';
       errorDiv.style.display = 'block';
       e.target.classList.add('form-input-error');
       return;
