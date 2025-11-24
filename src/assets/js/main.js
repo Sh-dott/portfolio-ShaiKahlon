@@ -993,37 +993,29 @@ const FormHandler = (() => {
         errorDiv.style.display = 'block';
         e.target.classList.add('form-input-error');
       } else {
-        // Message is valid - show quality feedback if not perfect
+        // Message is valid - hide error display
+        // Only show quality feedback for very low quality messages
         const quality = MessageAnalyzer.calculateQuality(message);
-        const feedback = MessageAnalyzer.getQualityFeedback(message);
 
-        if (quality >= 70) {
-          // Good quality message - no error display needed
+        if (quality >= 50) {
+          // Acceptable quality - no display needed
           errorDiv.style.display = 'none';
           e.target.classList.remove('form-input-error');
-        } else if (quality >= 50) {
-          // Message is acceptable but could be better
-          const suggestions = MessageAnalyzer.getSuggestions(message);
-          let feedbackText = `Message quality: ${Math.round(quality)}/100. `;
-
-          if (feedback.warning) {
-            feedbackText += feedback.warning;
-          }
+        } else {
+          // Very low quality but still valid - show gentle suggestion
+          const feedback = MessageAnalyzer.getQualityFeedback(message);
+          let feedbackText = 'Tip: ';
 
           if (feedback.suggestion) {
-            feedbackText += ` ${feedback.suggestion}`;
-          }
-
-          if (suggestions.length > 0) {
-            feedbackText += '\n\nSuggestions:\n';
-            suggestions.forEach(suggestion => {
-              feedbackText += `• ${suggestion}\n`;
-            });
+            feedbackText += feedback.suggestion;
+          } else {
+            feedbackText += 'Consider adding more detail to your message';
           }
 
           errorDiv.textContent = feedbackText;
           errorDiv.style.display = 'block';
-          e.target.classList.remove('form-input-error'); // Valid but with suggestions
+          errorDiv.style.color = '#8b5cf6'; // Purple for tips, not red for errors
+          e.target.classList.remove('form-input-error'); // Valid, just a suggestion
         }
       }
     } else {
