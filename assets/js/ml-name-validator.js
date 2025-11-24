@@ -378,20 +378,19 @@ const MLNameValidator = (() => {
       // Exact or near-exact match in database
       valid = true;
       reason = 'Exact match in database';
-    } else if (confidence >= 75 && phonetics.isPhoneticValid) {
-      // Strong phonetic match + good confidence
+    } else if (phonetics.isPhoneticValid) {
+      // If phonetics are valid and it's 3+ characters, it's likely a real name
+      // This accepts names not in the database but with natural name patterns
       valid = true;
       reason = 'Phonetically valid name pattern';
-    } else if (confidence >= 85) {
-      // Very high confidence even without database match
+    } else if (confidence >= 70) {
+      // High confidence even if phonetics slightly off
       valid = true;
       reason = 'Strong name characteristics';
-    } else if (!phonetics.isPhoneticValid) {
+    } else {
+      // Phonetics failed - definitely not a name
       valid = false;
       reason = 'Does not match natural name phonetics';
-    } else {
-      valid = false;
-      reason = 'Insufficient confidence that this is a real name';
     }
 
     return {
